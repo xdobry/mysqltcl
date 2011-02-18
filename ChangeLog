@@ -1,4 +1,8 @@
+Release 3.02
+-- bug in mysql::map and mysql::recieve removed (occurs only for one column evalated in global context)
+-- TEA upgrated
 Release 3.01
+-- bug in mysql::state then no proper handle fixed
 -- bug in mysql::nextresult fixed
 -- bug in man format doc fixed
 -- new command mysql::encoding

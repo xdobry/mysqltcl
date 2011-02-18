@@ -1,4 +1,4 @@
-set file libmysqltcl3.01
+set file libmysqltcl3.02
 
 if {[file exists ./${file}[info sharedlibextension]]} {
     load ./${file}[info sharedlibextension]

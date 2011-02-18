@@ -36,11 +36,16 @@
 #ifdef _WINDOWS
    #include <windows.h>
    #define PACKAGE "mysqltcl"
-   #define VERSION "3.01"
+   #define PACKAGE_VERSION "3.02"
 #endif
 
 #include <tcl.h>
 #include <mysql.h>
+
+#if (MYSQL_VERSION_ID<40100)
+  #error You need Mysql version 4.1 or higher to compile mysqltcl
+#endif
+
 
 #include <errno.h>
 #include <string.h>
@@ -183,7 +188,6 @@ static int MysqlHandleSet(Tcl_Interp *interp, register Tcl_Obj *objPtr)
 static int MysqlNullSet(Tcl_Interp *interp, Tcl_Obj *objPtr)
 {
     Tcl_ObjType *oldTypePtr = objPtr->typePtr;
-    Tcl_HashEntry *entryPtr;
 
     if ((oldTypePtr != NULL) && (oldTypePtr->freeIntRepProc != NULL)) {
         oldTypePtr->freeIntRepProc(objPtr);
@@ -1292,20 +1296,19 @@ static int Mysqltcl_Map(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
   int count ;
 
   MysqlTclHandle *handle;
-  int idx ;
-  int listObjc ;
-  Tcl_Obj** listObjv ;
-  MYSQL_ROW row ;
+  int idx;
+  int listObjc;
+  Tcl_Obj *tempObj,*varNameObj;
+  MYSQL_ROW row;
   int *val;
   unsigned long *lengths;
-  
   
   if ((handle = mysql_prologue(interp, objc, objv, 4, 4, CL_RES,
 			    "handle binding-list script")) == 0)
     return TCL_ERROR;
 
-  if (Tcl_ListObjGetElements(interp, objv[2], &listObjc, &listObjv) != TCL_OK)
-    return TCL_ERROR ;
+  if (Tcl_ListObjLength(interp, objv[2], &listObjc) != TCL_OK)
+        return TCL_ERROR ;
   
 
   if (listObjc > handle->col_count)
@@ -1317,8 +1320,12 @@ static int Mysqltcl_Map(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
       :handle->col_count ;
   
   val=(int*)Tcl_Alloc((count * sizeof(int)));
+
   for (idx=0; idx<count; idx++) {
-    if (Tcl_GetStringFromObj(listObjv[idx],0)[0] != '-')
+    val[idx]=1;
+    if (Tcl_ListObjIndex(interp, objv[2], idx, &varNameObj)!=TCL_OK)
+        return TCL_ERROR;
+    if (Tcl_GetStringFromObj(varNameObj,0)[0] != '-')
         val[idx]=1;
     else
         val[idx]=0;
@@ -1337,14 +1344,11 @@ static int Mysqltcl_Map(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     for (idx = 0; idx < count; idx++, row++) {
       lengths = mysql_fetch_lengths(handle->result);
       if (val[idx]) {
-	if (Tcl_ObjSetVar2 (interp, 
-			    listObjv[idx], NULL,getRowCellAsObject(statePtr,handle,row,lengths[idx]),
-			    TCL_LEAVE_ERR_MSG) == NULL) {
-	  Tcl_Free((char *)val);
-	  return TCL_ERROR ;
-
-	}
-
+	tempObj = getRowCellAsObject(statePtr,handle,row,lengths[idx]);
+        if (Tcl_ListObjIndex(interp, objv[2], idx, &varNameObj) != TCL_OK)
+            goto error;
+	if (Tcl_ObjSetVar2 (interp,varNameObj,NULL,tempObj,0) == NULL)
+            goto error;
       }
     }
 
@@ -1363,7 +1367,9 @@ static int Mysqltcl_Map(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
   }
   Tcl_Free((char *)val);
   return TCL_OK ;
-
+error:
+  Tcl_Free((char *)val);
+  return TCL_ERROR;    
 }
 
 /*
@@ -1388,14 +1394,14 @@ static int Mysqltcl_Map(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
 static int Mysqltcl_Receive(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
   MysqltclState *statePtr = (MysqltclState *)clientData; 
-  int code ;
-  int count ;
+  int code=0;
+  int count=0;
 
   MysqlTclHandle *handle;
-  int idx ;
-  int listObjc ;
-  Tcl_Obj** listObjv ;
-  MYSQL_ROW row ;
+  int idx;
+  int listObjc;
+  Tcl_Obj *tempObj,*varNameObj;
+  MYSQL_ROW row;
   int *val = NULL;
   int breakLoop = 0;
   unsigned long *lengths;
@@ -1405,8 +1411,8 @@ static int Mysqltcl_Receive(ClientData clientData, Tcl_Interp *interp, int objc,
 			    "handle sqlquery binding-list script")) == 0)
     return TCL_ERROR;
   
-  if (Tcl_ListObjGetElements(interp, objv[3], &listObjc, &listObjv) != TCL_OK)
-    return TCL_ERROR ;
+  if (Tcl_ListObjLength(interp, objv[3], &listObjc) != TCL_OK)
+        return TCL_ERROR;
   
   if (handle->result != NULL) {
     mysql_free_result(handle->result) ;
@@ -1425,30 +1431,34 @@ static int Mysqltcl_Receive(ClientData clientData, Tcl_Interp *interp, int objc,
 	/* first row compute all data */
 	handle->col_count = mysql_num_fields(handle->result);
 	if (listObjc > handle->col_count) {
-	  return mysql_prim_confl(interp,objc,objv,"too many variables in binding list") ;
+          return mysql_prim_confl(interp,objc,objv,"too many variables in binding list") ;
 	} else {
 	  count = (listObjc < handle->col_count)?listObjc:handle->col_count ;
 	}
 	val=(int*)Tcl_Alloc((count * sizeof(int)));
 	for (idx=0; idx<count; idx++) {
-
-	  if (Tcl_GetStringFromObj(listObjv[idx],0)[0] != '-')
+          if (Tcl_ListObjIndex(interp, objv[3], idx, &varNameObj)!=TCL_OK)
+            return TCL_ERROR;
+	  if (Tcl_GetStringFromObj(varNameObj,0)[0] != '-')
 	    val[idx]=1;
 	  else
 	    val[idx]=0;
 	}	
       }
       for (idx = 0; idx < count; idx++, row++) {
-	lengths = mysql_fetch_lengths(handle->result);
+	 lengths = mysql_fetch_lengths(handle->result);
 
-	if (val[idx]) {
-	  if (Tcl_ObjSetVar2 (interp, 
-			      listObjv[idx], NULL,getRowCellAsObject(statePtr,handle,row,lengths[idx]),
-			      TCL_LEAVE_ERR_MSG) == NULL) {
-	    Tcl_Free((char *)val);
-	    return TCL_ERROR ;
-	  }
-	}
+	 if (val[idx]) {
+	    if (Tcl_ListObjIndex(interp, objv[3], idx, &varNameObj)!=TCL_OK) {
+                Tcl_Free((char *)val);
+                return TCL_ERROR;
+            }
+            tempObj = getRowCellAsObject(statePtr,handle,row,lengths[idx]);
+            if (Tcl_ObjSetVar2 (interp,varNameObj,NULL,tempObj,TCL_LEAVE_ERR_MSG) == NULL) {
+	       Tcl_Free((char *)val);
+	       return TCL_ERROR ;
+	    }
+	 }
       }
       
       /* Evaluate the script. */
@@ -2149,7 +2159,6 @@ static Tcl_Obj *Mysqltcl_NewNullObj(MysqltclState *mysqltclState) {
 
 static int Mysqltcl_NewNull(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-  Tcl_Obj *objPtr;
   if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "");
       return TCL_ERROR;
@@ -2550,7 +2559,7 @@ int Mysqltcl_Init(interp)
     return TCL_ERROR;
   if (Tcl_PkgRequire(interp, "Tcl", "8.1", 0) == NULL)
     return TCL_ERROR;
-  if (Tcl_PkgProvide(interp, "mysqltcl" , VERSION) != TCL_OK)
+  if (Tcl_PkgProvide(interp, "mysqltcl" , PACKAGE_VERSION) != TCL_OK)
     return TCL_ERROR;
   /*
 
