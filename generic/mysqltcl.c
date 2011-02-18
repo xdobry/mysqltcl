@@ -81,9 +81,6 @@ typedef struct MysqlTclHandle {
   Tcl_Encoding encoding;
 } MysqlTclHandle;
 
-/* one global Hash for mysql handles */
-static Tcl_HashTable handleTable;
-
 static char *MysqlHandlePrefix = "mysql";
 /* Prefix string used to identify handles.
  * The following must be strlen(MysqlHandlePrefix).
@@ -130,6 +127,16 @@ static int MysqlHandleSet _ANSI_ARGS_((Tcl_Interp *interp,
            Tcl_Obj *objPtr));
 static void MysqlHandleFree _ANSI_ARGS_((Tcl_Obj *objPtr));
 
+static Tcl_ThreadDataKey dataKey;
+/* Every Thread holds own Hashtable for connection */
+Tcl_HashTable *getHandleTable() {
+  return (Tcl_HashTable *)Tcl_GetThreadData(&dataKey, sizeof(Tcl_HashTable));
+}
+void initHandleTable() {
+  Tcl_HashTable *hashTable = (Tcl_HashTable *) 
+            Tcl_GetThreadData(&dataKey, sizeof(Tcl_HashTable));
+  Tcl_InitHashTable(hashTable, TCL_STRING_KEYS);
+}
 
 
 /* handle object type 
@@ -143,10 +150,7 @@ Tcl_ObjType mysqlHandleType = {
     MysqlHandleSet
 };
 
-static int
-MysqlHandleSet(interp, objPtr)
-    Tcl_Interp *interp;		/* Used for error reporting if not NULL. */
-    register Tcl_Obj *objPtr;	/* The object to convert. */
+static int MysqlHandleSet(Tcl_Interp *interp, register Tcl_Obj *objPtr)
 {
     Tcl_ObjType *oldTypePtr = objPtr->typePtr;
     char *string;
@@ -154,7 +158,7 @@ MysqlHandleSet(interp, objPtr)
     Tcl_HashEntry *entryPtr;
 
     string=Tcl_GetStringFromObj(objPtr, NULL);  
-    entryPtr = Tcl_FindHashEntry(&handleTable,string);
+    entryPtr = Tcl_FindHashEntry(getHandleTable(),string);
     if (entryPtr == NULL) {
       handle=0;
     } else {
@@ -175,16 +179,14 @@ MysqlHandleSet(interp, objPtr)
 
     return TCL_OK;
 }
-static void
-MysqlHandleFree(Tcl_Obj *obj)
+static void MysqlHandleFree(Tcl_Obj *obj)
 {
   MysqlTclHandle *handle = (MysqlTclHandle *)obj->internalRep.otherValuePtr;
   Tcl_Release((char *)handle);
   /* printf("r free obj handle %i %x\n",handle->isquery,handle); */
 }
 
-static int
-GetHandleFromObj(interp, objPtr, handlePtr)
+static int GetHandleFromObj(interp, objPtr, handlePtr)
     Tcl_Interp *interp;
     register Tcl_Obj *objPtr;
     register MysqlTclHandle **handlePtr;
@@ -195,9 +197,7 @@ GetHandleFromObj(interp, objPtr, handlePtr)
     return TCL_OK;
 }
 
-static Tcl_Obj *
-Tcl_NewHandleObj(handle)
-    register MysqlTclHandle* handle;
+static Tcl_Obj *Tcl_NewHandleObj(register MysqlTclHandle* handle)
 {
     register Tcl_Obj *objPtr;
     char buffer[MYSQL_HPREFIX_LEN+TCL_DOUBLE_SPACE+1];
@@ -212,7 +212,7 @@ Tcl_NewHandleObj(handle)
     strcpy(objPtr->bytes, buffer);
     objPtr->length = len;
     
-    entryPtr=Tcl_CreateHashEntry(&handleTable,buffer,&newflag);
+    entryPtr=Tcl_CreateHashEntry(getHandleTable(),buffer,&newflag);
     Tcl_SetHashValue(entryPtr,handle);     
   
     objPtr->internalRep.otherValuePtr = handle;
@@ -223,6 +223,8 @@ Tcl_NewHandleObj(handle)
 
     return objPtr;
 }
+
+
 
 
 /* CONFLICT HANDLING
@@ -254,8 +256,7 @@ Tcl_NewHandleObj(handle)
  * informations
  */
 
-static void 
-set_statusArr(Tcl_Interp *interp,char *elem_name,Tcl_Obj *tobj)
+static void set_statusArr(Tcl_Interp *interp,char *elem_name,Tcl_Obj *tobj)
 {
   Tcl_SetVar2Ex (interp,MYSQL_STATUS_ARR,elem_name,tobj,TCL_GLOBAL_ONLY); 
 }
@@ -283,8 +284,7 @@ clear_msg(Tcl_Interp *interp)
  * mysqlstatus(command).
  */
 
-static void
-mysql_reassemble (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[])
+static void mysql_reassemble (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[])
 {
    set_statusArr(interp,MYSQL_STATUS_CMD,Tcl_NewListObj(objc, objv));
 }
@@ -297,8 +297,7 @@ mysql_reassemble (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[])
  *
  */
 
-static int
-mysql_prim_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],char *msg)
+static int mysql_prim_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],char *msg)
 {
   set_statusArr(interp,MYSQL_STATUS_CODE,Tcl_NewIntObj(-1));
 
@@ -320,8 +319,7 @@ mysql_prim_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],char *msg)
  *
  */
 
-static int
-mysql_server_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL * connection)
+static int mysql_server_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL * connection)
 {
   char* mysql_errorMsg;
 
@@ -341,8 +339,7 @@ mysql_server_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL * co
   return TCL_ERROR ;
 }
 
-static  MysqlTclHandle *
-get_handle (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],int check_level) 
+static  MysqlTclHandle *get_handle (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],int check_level) 
 {
   MysqlTclHandle *handle;
   if (GetHandleFromObj(interp, objv[1], &handle) != TCL_OK) {
@@ -412,6 +409,8 @@ static Tcl_Obj *getRowCellAsObject(MysqlTclHandle *handle,MYSQL_ROW row,int leng
   return obj;
 }
 
+TCL_DECLARE_MUTEX(myMutex)
+
 static MysqlTclHandle *createMysqlHandle() 
 {
   static int HandleNum=0;
@@ -432,8 +431,10 @@ static MysqlTclHandle *createMysqlHandle()
 
   /* printf("p create handle %i %x\n",handle->isquery,handle); */
 
-  /* not MT-safe, static  */
+  /* MT-safe, secure static variable. I do not know if it is necessary in this case */
+  Tcl_MutexLock(&myMutex);
   handle->number=HandleNum++;
+  Tcl_MutexUnlock(&myMutex);
   return handle;
 }
 
@@ -477,8 +478,7 @@ static void closeHandle(MysqlTclHandle *handle)
  * SIDE EFFECT: Sets the Tcl result on failure.
  */
 
-static MysqlTclHandle *
-mysql_prologue (interp, objc, objv, req_min_args, req_max_args, check_level, usage_msg)
+static MysqlTclHandle *mysql_prologue (interp, objc, objv, req_min_args, req_max_args, check_level, usage_msg)
      Tcl_Interp *interp;
      int         objc;
      Tcl_Obj *CONST objv[];
@@ -513,13 +513,7 @@ mysql_prologue (interp, objc, objv, req_min_args, req_max_args, check_level, usa
  * SIDE EFFECT: Sets the result and status on failure.
  */
 
-static Tcl_Obj *
-mysql_colinfo (interp,objc,objv,fld,keyw)
-     Tcl_Interp *interp;
-     int         objc;
-     Tcl_Obj *CONST objv[];
-     MYSQL_FIELD* fld ;
-     Tcl_Obj * keyw ;
+static Tcl_Obj *mysql_colinfo (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL_FIELD* fld,Tcl_Obj * keyw)
 {
   char buf[MYSQL_SMALL_SIZE];
   int idx ;
@@ -621,16 +615,14 @@ mysql_colinfo (interp,objc,objv,fld,keyw)
  *
  */
 
-static void
-Mysqltcl_Kill (clientData)
-    ClientData clientData;
+static void Mysqltcl_Kill (ClientData clientData)
 {
   Tcl_HashEntry *entryPtr;
   Tcl_HashSearch search;
   MysqlTclHandle *handle;
   int wasdeleted=0;
 
-  for (entryPtr=Tcl_FirstHashEntry(&handleTable,&search); 
+  for (entryPtr=Tcl_FirstHashEntry(getHandleTable(),&search); 
        entryPtr!=NULL;
        entryPtr=Tcl_NextHashEntry(&search)) {
     wasdeleted=1;
@@ -645,8 +637,8 @@ Mysqltcl_Kill (clientData)
     closeHandle(handle);
   }
   if (wasdeleted) {
-    Tcl_DeleteHashTable(&handleTable);
-    Tcl_InitHashTable (&handleTable, TCL_STRING_KEYS);
+    Tcl_DeleteHashTable(getHandleTable());
+    Tcl_InitHashTable (getHandleTable(), TCL_STRING_KEYS);
   }
 }
 
@@ -998,7 +990,7 @@ DEFINE_CMD(Mysqltcl_EndQuery)
     handle->result = NULL ;
   }
   if (handle->isquery) {
-    entryPtr = Tcl_FindHashEntry(&handleTable,Tcl_GetStringFromObj(objv[1],NULL));
+    entryPtr = Tcl_FindHashEntry(getHandleTable(),Tcl_GetStringFromObj(objv[1],NULL));
     if (entryPtr) {
       Tcl_DeleteHashEntry(entryPtr);
     }
@@ -1705,7 +1697,7 @@ DEFINE_CMD(Mysqltcl_Close)
   if (!handle->isquery)  {
     mysql_close(handle->connection);
     while (1) {
-      for (entryPtr=Tcl_FirstHashEntry(&handleTable,&search); 
+      for (entryPtr=Tcl_FirstHashEntry(getHandleTable(),&search); 
 	   entryPtr!=NULL;
 	   entryPtr=Tcl_NextHashEntry(&search)) {
 
@@ -1730,7 +1722,7 @@ DEFINE_CMD(Mysqltcl_Close)
       qfound = 0;
     }
   }
-  entryPtr = Tcl_FindHashEntry(&handleTable,Tcl_GetStringFromObj(objv[1],NULL));
+  entryPtr = Tcl_FindHashEntry(getHandleTable(),Tcl_GetStringFromObj(objv[1],NULL));
   if (entryPtr) Tcl_DeleteHashEntry(entryPtr);
   closeHandle(handle);
   return TCL_OK;
@@ -1798,7 +1790,7 @@ int Mysqltcl_Init (interp)
   clear_msg(interp);
   
   /* Initialize HashTable for mysql handles */
-  Tcl_InitHashTable (&handleTable, TCL_STRING_KEYS);
+  initHandleTable();
 
   /* Link the null value element to the corresponding C variable. */
   if ((MysqlNullvalue = (char*)Tcl_Alloc (12)) == NULL) return TCL_ERROR ;

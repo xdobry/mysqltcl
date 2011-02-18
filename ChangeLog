@@ -1,3 +1,7 @@
+Release 2.40
+-- mysqltcl is now thread safe. The hashtable is hold separated for each thread
+Release 2.31
+-- bug in mysqlescape $handle $string fixed (Thanks to Olav Vitters)
 Release 2.30
 -- new connection options -ssl -odbc -noschema -compress
 -- mysqlescape can take also handle as argument to use mysql_real_escape_string and respect character setting
