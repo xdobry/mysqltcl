@@ -1,3 +1,8 @@
+Release 3.04
+-- bug fix for mysql::state (check for argument lenght). Thanks to Snyper for bug fix
+Release 3.03
+-- patch for file mysqltcl.c to adapt mysql column comands for mysql5 was applied. This accept 
+new columns  types: newdecimal, bit and geometry. Thanks to Joerg Mehring.
 Release 3.02
 -- bug in mysql::map and mysql::recieve removed (occurs only for one column evalated in global context)
 -- TEA upgrated

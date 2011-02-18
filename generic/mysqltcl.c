@@ -1866,8 +1866,10 @@ static int Mysqltcl_State(ClientData clientData, Tcl_Interp *interp, int objc, T
   int numeric=0 ;
   Tcl_Obj *res;
 
-  if (objc!=2 && objc!=3)
+  if (objc!=2 && objc!=3) {
       Tcl_WrongNumArgs(interp, 1, objv, "handle ?-numeric");
+      return TCL_ERROR;
+  }
 
   if (objc==3) {
     if (strcmp(Tcl_GetStringFromObj(objv[2],NULL), "-numeric"))

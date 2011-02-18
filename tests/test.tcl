@@ -424,5 +424,10 @@ tcltest::test {interpreter-1.0} {mysqltcl in slave interpreter} -body {
 	return
 }
 
+tcltest::test {mysql::state-1.0} {wrong parameter length} -body {
+	mysql::state
+	return
+} -returnCodes error -match glob -result "*wrong*"
+
 tcltest::cleanupTests
 puts "End of test"
