@@ -51,3 +51,20 @@ the license agreement in the README-msqltcl file.
 
 Tobias Ritzau (tobri@ida.liu.se)
 
+VERSION 2.0
+
+Version 2.0 supports all Tcl8.0 futures, uni-code strings and ist
+faster than old versions.
+Compiliation and Installation ist made by using 
+./configure scripts (autoconf,automake)
+It was internal redisigned to support unlimited connection number and
+to prepare for multi thread safe (remove unnessesery gloabal variables)
+
+New mysqltcl Homepage 
+
+http://www.xdobry.de/mysqltcl
+
+Contact:
+Mail to both:
+Tobias Ritzau <tobri@ida.liu.se> configure script support
+Artur Trzewik <mail@xdobry.de> code support

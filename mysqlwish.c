@@ -23,6 +23,8 @@
 extern int matherr();
 int *tclDummyMathPtr = (int *) matherr;
 
+extern int Mysqltcl_Init (Tcl_Interp *interp);
+
 #ifdef TK_TEST
 EXTERN int		Tktest_Init _ANSI_ARGS_((Tcl_Interp *interp));
 #endif /* TK_TEST */

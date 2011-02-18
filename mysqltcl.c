@@ -1,5 +1,5 @@
 /*
- * $Id: mysqltcl.c,v 1.2 1997/04/27 22:01:27 greg Exp greg $
+ * $Id: mysqltcl.c,v 1.3 1999/09/23 22:37:43 tobri Exp $
  *
  * MYSQL interface to Tcl
  *
@@ -24,8 +24,9 @@
  * DAMAGES OF ANY KIND, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
  * OF USE, DATA OR PROFITS, WHETHER OR NOT ADVISED OF THE POSSIBILITY
  * OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * CONNECTON WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "config.h"
 
 #include <tcl.h>
 #include <mysql.h>
@@ -34,10 +35,32 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <stdlib.h>
 
+
+/* A few macros for making the code more readable */
+
+#if TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION==0
+#define Tcl_GetString(x) Tcl_GetStringFromObj((x),NULL)
+#endif
+
+#define DECLARE_CMD(func) \
+static int func _ANSI_ARGS_((ClientData clientData, \
+		   Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]))
+
+#define DEFINE_CMD(func) \
+static int func(clientData, interp, objc, objv) \
+    ClientData clientData; \
+    Tcl_Interp *interp;	\
+    int objc; \
+    Tcl_Obj *CONST objv[];
+
+#define ADD_CMD(cmdName, cmdProc) \
+Tcl_CreateObjCommand(interp, #cmdName, cmdProc, NULL, Mysqltcl_Kill)
+
+/* Compile-time constants */
 
 #define MYSQL_HANDLES      15	/* Default number of handles available. */
-#define MYSQL_BUFF_SIZE	1024	/* Conversion buffer size for various needs. */
 #define MYSQL_SMALL_SIZE  TCL_RESULT_SIZE /* Smaller buffer size. */
 #define MYSQL_NAME_LEN     80    /* Max. host, database name length. */
 
@@ -48,10 +71,10 @@ typedef struct MysqlTclHandle {
   MYSQL_RES* result ;              /* Stored result, if any; NULL otherwise. */
   int res_count ;                 /* Count of unfetched rows in result. */
   int col_count ;                 /* Column count in result, if any. */
-  MYSQL *mysql ;		  /* Some other pointer */
+  int number;
 } MysqlTclHandle;
-
-static MysqlTclHandle   MysqlHandle[MYSQL_HANDLES];  
+/* one global Hash for mysql handles */
+static Tcl_HashTable handleTable;
 
 static char *MysqlHandlePrefix = "mysql";
 /* Prefix string used to identify handles.
@@ -74,7 +97,7 @@ static char* MysqlNullvalue = NULL ;
      
 static char* MysqlDbOpt[] =
 {
-  "dbname", "dbname?", "tables", "host", "host?", "databases"
+  "dbname", "dbname?", "tables", "host", "host?", "databases", NULL
 };
 #define MYSQL_INFNAME_OPT 0
 #define MYSQL_INFNAMEQ_OPT 1
@@ -83,11 +106,9 @@ static char* MysqlDbOpt[] =
 #define MYSQL_INFHOSTQ_OPT 4
 #define MYSQL_INFLIST_OPT 5
 
-#define MYSQL_INF_OPT_MAX 5
-
 static char* MysqlResultOpt[] =
 {
-  "rows", "rows?", "cols", "cols?", "current", "current?"
+  "rows", "rows?", "cols", "cols?", "current", "current?", NULL
 };
 #define MYSQL_RESROWS_OPT 0
 #define MYSQL_RESROWSQ_OPT 1
@@ -96,13 +117,11 @@ static char* MysqlResultOpt[] =
 #define MYSQL_RESCUR_OPT 4
 #define MYSQL_RESCURQ_OPT 5
 
-#define MYSQL_RES_OPT_MAX 5
-
 /* Column info definitions. */
 
 static char* MysqlColkey[] =
 {
-  "table", "name", "type", "length", "prim_key", "non_null"
+  "table", "name", "type", "length", "prim_key", "non_null", NULL
 };
 
 #define MYSQL_COL_TABLE_K 0
@@ -112,115 +131,168 @@ static char* MysqlColkey[] =
 #define MYSQL_COL_PRIMKEY_K 4
 #define MYSQL_COL_NONNULL_K 5
 
-#define MYSQL_COL_K_MAX 5
+/* Options to the 'connect' command. */
+     
+static char* MysqlConnectOpt[] =
+{
+  "-host", "-user", "-password", "-db", "-port", "-socket", NULL
+};
+#define MYSQL_CONNHOST_OPT 0
+#define MYSQL_CONNUSER_OPT 1
+#define MYSQL_CONNPASSWORD_OPT 2
+#define MYSQL_CONNDB_OPT 3
+#define MYSQL_CONNPORT_OPT 4
+#define MYSQL_CONNSOCKET_OPT 5
 
-/* Macro for checking handle syntax; arguments:
- * 'h' must point to the handle.
- * 'H' must be an int variable.
- * RETURNS the handle index; or -1 on syntax conflict.
- * SIDE EFFECT: 'H' will contain the handle index on success.
- * 'h' will point to the first digit on success.
- * ASSUMES constant MYSQL_HANDLES >= 10.
- */
-#define HSYNTAX(h,H) \
-(((strncmp(h,MysqlHandlePrefix,MYSQL_HPREFIX_LEN) == 0) && \
-(h+=MYSQL_HPREFIX_LEN) && isdigit(h[0]))? \
- (((H=h[0]-'0')+1 && h[1]=='\0')?H: \
-  ((isdigit(h[1]) && h[2]=='\0' && (H=10*H+h[1]-'0')<MYSQL_HANDLES)?H:-1)) \
-:-1)
-
+/* Check Level for mysql_prologue */
+#define CL_PLAIN 0
+#define CL_CONN  1
+#define CL_DB    2
+#define CL_RES 3
 
 /* Prototypes for all functions. */
 
-extern Tcl_CmdProc  Mysqltcl_Connect;
-extern Tcl_CmdProc  Mysqltcl_Use;
-extern Tcl_CmdProc  Mysqltcl_Sel;
-extern Tcl_CmdProc  Mysqltcl_Next;
-extern Tcl_CmdProc  Mysqltcl_Seek;
-extern Tcl_CmdProc  Mysqltcl_Map;
-extern Tcl_CmdProc  Mysqltcl_Exec;
-extern Tcl_CmdProc  Mysqltcl_Close;
-extern Tcl_CmdProc  Mysqltcl_Info;
-extern Tcl_CmdProc  Mysqltcl_Result;
-extern Tcl_CmdProc  Mysqltcl_Col;
-extern Tcl_CmdProc  Mysqltcl_State;
-extern Tcl_CmdProc  Mysqltcl_InsertId;
+DECLARE_CMD(Mysqltcl_Connect);
+DECLARE_CMD(Mysqltcl_Use);
+DECLARE_CMD(Mysqltcl_Escape);
+DECLARE_CMD(Mysqltcl_Sel);
+DECLARE_CMD(Mysqltcl_Next);
+DECLARE_CMD(Mysqltcl_Seek);
+DECLARE_CMD(Mysqltcl_Map);
+DECLARE_CMD(Mysqltcl_Exec);
+DECLARE_CMD(Mysqltcl_Close);
+DECLARE_CMD(Mysqltcl_Info);
+DECLARE_CMD(Mysqltcl_Result);
+DECLARE_CMD(Mysqltcl_Col);
+DECLARE_CMD(Mysqltcl_State);
+DECLARE_CMD(Mysqltcl_InsertId);
+/*
+static void MysqlHandleDup _ANSI_ARGS_((Tcl_Obj *srcPtr,
+            Tcl_Obj *copyPtr));
+*/
+static int MysqlHandleSet _ANSI_ARGS_((Tcl_Interp *interp,
+           Tcl_Obj *objPtr));
+static void MysqlHandleUpdate _ANSI_ARGS_((Tcl_Obj *objPtr));
 
+
+/* handle object type */
   
+Tcl_ObjType mysqlHandleType = {
+    "mysqlhandle", 
+    (Tcl_FreeInternalRepProc *) NULL,
+    (Tcl_DupInternalRepProc *) NULL,
+    NULL,
+    MysqlHandleSet
+};
+
+static int
+MysqlHandleSet(interp, objPtr)
+    Tcl_Interp *interp;		/* Used for error reporting if not NULL. */
+    register Tcl_Obj *objPtr;	/* The object to convert. */
+{
+    Tcl_ObjType *oldTypePtr = objPtr->typePtr;
+    char *string;
+    int length;
+    register char *p;
+    MysqlTclHandle *handle;
+    Tcl_HashEntry *entryPtr;
+
+    string=Tcl_GetStringFromObj(objPtr, NULL);  
+    entryPtr = Tcl_FindHashEntry(&handleTable,string);
+    if (entryPtr == NULL) {
+      handle=0;
+    } else {
+      handle=(MysqlTclHandle *)Tcl_GetHashValue(entryPtr);
+    }
+    if (!handle) {
+        if (interp != NULL)
+	  return TCL_ERROR;
+    }
+    if ((oldTypePtr != NULL) && (oldTypePtr->freeIntRepProc != NULL)) {
+        oldTypePtr->freeIntRepProc(objPtr);
+    }
+    
+    objPtr->internalRep.otherValuePtr = (MysqlTclHandle *) handle;
+    objPtr->typePtr = &mysqlHandleType;
+    return TCL_OK;
+}
+
+static int
+GetHandleFromObj(interp, objPtr, handlePtr)
+    Tcl_Interp *interp;
+    register Tcl_Obj *objPtr;
+    register MysqlTclHandle **handlePtr;
+{
+    int result;
+    
+    result = MysqlHandleSet(interp, objPtr);
+    if (result == TCL_OK) {
+      *handlePtr = (MysqlTclHandle *)objPtr->internalRep.otherValuePtr;
+    }
+    return result;
+}
+
+static Tcl_Obj *
+Tcl_NewHandleObj(handle)
+    register MysqlTclHandle* handle;
+{
+    register Tcl_Obj *objPtr;
+    char buffer[MYSQL_HPREFIX_LEN+TCL_DOUBLE_SPACE+1];
+    register int len;
+    Tcl_HashEntry *entryPtr;
+    int newflag;
+
+    objPtr=Tcl_NewObj();
+    len=sprintf(buffer, "%s%d", MysqlHandlePrefix,handle->number);    
+    objPtr->bytes = Tcl_Alloc((unsigned) len + 1);
+    strcpy(objPtr->bytes, buffer);
+    objPtr->length = len;
+    
+    entryPtr=Tcl_CreateHashEntry(&handleTable,buffer,&newflag);
+    Tcl_SetHashValue(entryPtr,handle);     
+  
+    objPtr->internalRep.otherValuePtr = handle;
+    objPtr->typePtr = &mysqlHandleType;
+    return objPtr;
+}
+
+
 /* CONFLICT HANDLING
  *
  * Every command begins by calling 'mysql_prologue'.
  * This function resets mysqlstatus(code) to zero; the other array elements
  * retain their previous values.
- * The function also saves argc/argv in global variables.
+ * The function also saves objc/objv in global variables.
  * After this the command processing proper begins.
  *
  * If there is a conflict, the message is taken from one of the following
  * sources,
  * -- this code (mysql_prim_confl),
  * -- the database server (mysql_server_confl),
- * -- a POSIX (system call) diagnostic.
  * A complete message is put together from the above plus the name of the
  * command where the conflict was detected.
  * The complete message is returned as the Tcl result and is also stored in
  * mysqlstatus(message).
- * mysqlstatus(code) is set to "-1", except for POSIX conflicts where 'errno'
- * is used.
+ * mysqlstatus(code) is set to "-1" for a primitive conflict or to mysql_errno
+ * for a server conflict
  * In addition, the whole command where the conflict was detected is put
- * together from the saved argc/argv and is copied into mysqlstatus(command).
+ * together from the saved objc/objv and is copied into mysqlstatus(command).
  */
-
-static Tcl_Interp* saved_interp;
-static int saved_argc;
-static char** saved_argv;
-
 
 /*
  *----------------------------------------------------------------------
  * mysql_reassemble
- * Reassembles the current command from the saved argv; copies it into
+ * Reassembles the current command from the saved objv; copies it into
  * mysqlstatus(command).
  */
 
 static void
-mysql_reassemble ()
+mysql_reassemble (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[])
 {
-  unsigned int flags = TCL_GLOBAL_ONLY | TCL_LIST_ELEMENT;
-  int idx ;
 
-  for (idx = 0; idx < saved_argc; ++idx)
-    {
-      Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_CMD,
-		   saved_argv[idx], flags) ;
-      flags |= TCL_APPEND_VALUE ;
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- * mysql_posix_confl
- * Conflict handling after a failed system call.
- */
-
-static int
-mysql_posix_confl (syscall)
-     char* syscall;
-{
-  char buf[MYSQL_SMALL_SIZE];
-  char* strerror () ;
-  char* msg = strerror (errno) ;
-
-  sprintf(buf, "%d", errno) ;
-  Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_CODE, buf,
-	       TCL_GLOBAL_ONLY);
-  Tcl_SetResult (saved_interp, "", TCL_STATIC) ;
-  Tcl_AppendResult (saved_interp, saved_argv[0], "/POSIX: (", syscall,
-		    ") ", (msg == NULL) ? "" : msg, (char*)NULL);
-  Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_MSG,
-	       saved_interp->result, TCL_GLOBAL_ONLY);
-  mysql_reassemble () ;
-  return TCL_ERROR ;
+  Tcl_SetVar2 (interp, MysqlStatusArr, MYSQL_STATUS_CMD,
+	   Tcl_GetString(Tcl_NewListObj(objc, objv)),
+           TCL_GLOBAL_ONLY) ;
 }
 
 
@@ -232,16 +304,16 @@ mysql_posix_confl (syscall)
  */
 
 static int
-mysql_prim_confl (msg)
-     char* msg ;
+mysql_prim_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],char *msg)
 {
-  Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_CODE, "-1",
+  Tcl_SetVar2 (interp, MysqlStatusArr, MYSQL_STATUS_CODE, "-1",
 	       TCL_GLOBAL_ONLY);
-  Tcl_SetResult (saved_interp, "", TCL_STATIC) ;
-  Tcl_AppendResult (saved_interp, saved_argv[0], ": ", msg, (char*)NULL) ;
-  Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_MSG,
-	       saved_interp->result, TCL_GLOBAL_ONLY);
-  mysql_reassemble () ;
+  Tcl_ResetResult (interp) ;
+  Tcl_AppendStringsToObj (Tcl_GetObjResult(interp),
+                          Tcl_GetString(objv[0]), ": ", msg, (char*)NULL);
+  Tcl_SetVar2 (interp, MysqlStatusArr, MYSQL_STATUS_MSG,
+	           Tcl_GetStringResult(interp), TCL_GLOBAL_ONLY);
+  mysql_reassemble (interp,objc,objv) ;
   return TCL_ERROR ;
 }
 
@@ -254,150 +326,51 @@ mysql_prim_confl (msg)
  */
 
 static int
-mysql_server_confl (int hand, MYSQL * connection)
+mysql_server_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL * connection)
 {
   char* mysql_errorMsg;
+  char buf[10];
 
-  /* mysql_errorMsg = mysql_error(connection);	*/
-  mysql_errorMsg = "blah blah blah";
   mysql_errorMsg = mysql_error(connection);
+  sprintf(buf,"%d", mysql_errno(connection)),
 
-  Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_CODE, "-1",
-	       TCL_GLOBAL_ONLY);
-  Tcl_SetResult (saved_interp, "", TCL_STATIC) ;
-  Tcl_AppendResult (saved_interp, saved_argv[0], "/db server: ",
-		    (mysql_errorMsg == NULL) ? "" : mysql_errorMsg, (char*)NULL) ;
-  Tcl_SetVar2 (saved_interp, MysqlStatusArr, MYSQL_STATUS_MSG,
-	       saved_interp->result, TCL_GLOBAL_ONLY);
-  mysql_reassemble () ;
+  Tcl_SetVar2 (interp, MysqlStatusArr, MYSQL_STATUS_CODE, buf,
+	           TCL_GLOBAL_ONLY);
+  Tcl_ResetResult (interp) ;
+  Tcl_AppendStringsToObj (Tcl_GetObjResult(interp),
+                          Tcl_GetString(objv[0]), "/db server: ",
+		          (mysql_errorMsg == NULL) ? "" : mysql_errorMsg,
+                          (char*)NULL) ;
+  Tcl_SetVar2 (interp, MysqlStatusArr, MYSQL_STATUS_MSG,
+	       Tcl_GetStringResult(interp), TCL_GLOBAL_ONLY);
+  mysql_reassemble (interp,objc,objv) ;
   return TCL_ERROR ;
 }
 
-
-/*----------------------------------------------------------------------
- * get_handle_plain
- * Check handle syntax (and nothing else).
- * RETURN: MysqlHandle index number or -1 on error.
- */
-static int
-get_handle_plain (handle) 
-     char *handle;
+static  MysqlTclHandle *
+get_handle (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],int check_level) 
 {
-  int hi ;
-  char* hp = handle ;
-  
-  if (HSYNTAX(hp,hi) < 0)
-    {
-      mysql_prim_confl ("weird handle") ; /*  */
-      return -1 ;
-    }
-  else
-    return hi ;
-}
-
-
-/*----------------------------------------------------------------------
- * get_handle_conn
- * Check handle syntax, verify that the handle is connected.
- * RETURN: MysqlHandle index number or -1 on error.
- */
-static int
-get_handle_conn (handle) 
-     char *handle;
-{
-  int hi ;
-  char* hp = handle ;
-
-  if (HSYNTAX(hp,hi) < 0)
-    {
-      mysql_prim_confl ("weird handle") ;
-      return -1 ;
-    }
-
-  if (MysqlHandle[hi].connection == 0)
-    {
-      mysql_prim_confl ("handle not connected") ;
-      return -1 ;
-    }
-  else
-    return hi ;
-}
-
-
-/*----------------------------------------------------------------------
- * get_handle_db
- * Check handle syntax, verify that the handle is connected and that
- * there is a current database.
- * RETURN: MysqlHandle index number or -1 on error.
- */
-static int
-get_handle_db (handle) 
-     char *handle;
-{
-  int hi ;
-  char* hp = handle ;
-
-  if (HSYNTAX(hp,hi) < 0)
-    {
-      mysql_prim_confl ("weird handle") ;
-      return -1 ;
-    }
-
-  if (MysqlHandle[hi].connection == 0)
-    {
-      mysql_prim_confl ("handle not connected") ;
-      return -1 ;
-    }
-
-  if (MysqlHandle[hi].database[0] == '\0')
-    {
-      mysql_prim_confl ("no current database") ;
-      return -1 ;
-    }
-  else
-    return hi ;
-}
-
-
-/*----------------------------------------------------------------------
- * get_handle_res
- * Check handle syntax, verify that the handle is connected and that
- * there is a current database and that there is a pending result.
- * RETURN: MysqlHandle index number or -1 on error.
- */
-
-static int
-get_handle_res (handle) 
-     char *handle;
-{
-  int hi ;
-  char* hp = handle ;
-
-  if (HSYNTAX(hp,hi) < 0)
-    {
-      mysql_prim_confl ("weird handle") ;
-      return -1 ;
-    }
-
-  if (MysqlHandle[hi].connection == 0)
-    {
-      mysql_prim_confl ("handle not connected") ;
-      return -1 ;
-    }
-
-  if (MysqlHandle[hi].database[0] == '\0')
-    {
-      mysql_prim_confl ("no current database") ;
-      return -1 ;
-    }
-
-  if (MysqlHandle[hi].result == NULL)
-    {
-      mysql_prim_confl ("no result pending") ; /*  */
-      return -1 ;
-    }
-  else
-    return hi ;
+  MysqlTclHandle *handle;
+  if (GetHandleFromObj(interp, objv[1], &handle) != TCL_OK) {
+    mysql_prim_confl (interp,objc,objv,"handle not connected") ;
+    return 0;
+  }
+  if (check_level==CL_PLAIN) return handle;
+  if (handle->connection == 0) {
+      mysql_prim_confl (interp,objc,objv,"handle not connected") ;
+      return 0;
+  }
+  if (check_level==CL_CONN) return handle;
+  if (handle->database[0] == '\0') {
+    mysql_prim_confl (interp,objc,objv,"no current database") ;
+    return 0;
+  }
+  if (check_level==CL_DB) return handle;
+  if (handle->result == NULL) {
+      mysql_prim_confl (interp,objc,objv,"no result pending") ;
+      return 0;
+  }
+  return handle;
 }
 
 
@@ -407,18 +380,14 @@ get_handle_res (handle)
  * Initialize the handle array.
  */
 static void 
-handle_init () 
+handle_init (MysqlTclHandle *handle) 
 {
-  int i ;
-
-  for (i = 0; i < MYSQL_HANDLES; i++) {
-    MysqlHandle[i].connection = (MYSQL *)0 ;
-    MysqlHandle[i].host[0] = '\0' ;
-    MysqlHandle[i].database[0] = '\0' ;
-    MysqlHandle[i].result = NULL ;
-    MysqlHandle[i].res_count = 0 ;
-    MysqlHandle[i].col_count = 0 ;
-  }
+  handle->connection = (MYSQL *)0 ;
+  handle->host[0] = '\0' ;
+  handle->database[0] = '\0' ;
+  handle->result = NULL ;
+  handle->res_count = 0 ;
+  handle->col_count = 0 ;
 }
 
 
@@ -446,53 +415,42 @@ clear_msg(interp)
  *
  * Does most of standard command prologue; required for all commands
  * having conflict handling.
- * 'req_args' must be the required number of arguments for the command,
+ * 'req_min_args' must be the minimum number of arguments for the command,
+ * including the command word.
+ * 'req_max_args' must be the maximum number of arguments for the command,
  * including the command word.
  * 'usage_msg' must be a usage message, leaving out the command name.
- * Checks the handle assumed to be present in argv[1] if 'check' is not NULL.
+ * Checks the handle assumed to be present in objv[1] if 'check' is not NULL.
  * RETURNS: Handle index or -1 on failure.
- * Returns zero if 'check' is NULL.
  * SIDE EFFECT: Sets the Tcl result on failure.
  */
 
-static int
-mysql_prologue (interp, argc, argv, req_args, check, usage_msg)
+static MysqlTclHandle *
+mysql_prologue (interp, objc, objv, req_min_args, req_max_args, check_level, usage_msg)
      Tcl_Interp *interp;
-     int         argc;
-     char      **argv;
-     int         req_args;
-     char       *usage_msg;
-     int (*check) () ; /* Pointer to function for checking the handle. */
+     int         objc;
+     Tcl_Obj *CONST objv[];
+     int         req_min_args;
+     int         req_max_args;
+     int check_level;
+     char *usage_msg;
 {
-  char buf[MYSQL_BUFF_SIZE];
-  int hand = 0;
-  int need;
+  MysqlTclHandle* hand;
+
+  /* Check number of args. */
+  if (objc < req_min_args || objc > req_max_args) {
+      Tcl_WrongNumArgs(interp, 1, objv, usage_msg);
+      return NULL;
+  }
 
   /* Reset mysqlstatus(code). */
   Tcl_SetVar2 (interp, MysqlStatusArr, MYSQL_STATUS_CODE, "0",
 	       TCL_GLOBAL_ONLY);
 
-  /* Save command environment. */
-  saved_interp = interp;
-  saved_argc = argc ;
-  saved_argv = argv ;
-
-  /* Check number of minimum args. */
-  if ((need = req_args - argc) > 0) 
-    {
-      sprintf (buf, "%d more %s needed: %s %s", need, (need>1)?"args":"arg",
-	       argv[0], usage_msg);
-      (void)mysql_prim_confl (buf) ;
-      return -1 ;
-    }
-
   /* Check the handle.
    * The function is assumed to set the status array on conflict.
    */
-  if (check != NULL && (hand = check (argv[1])) < 0)
-    return -1 ;
-
-  return (hand);
+  return (get_handle(interp,objc,objv,check_level));
 }
 
 
@@ -507,144 +465,92 @@ mysql_prologue (interp, argc, argv, req_args, check, usage_msg)
  * SIDE EFFECT: Sets the result and status on failure.
  */
 
-static int
-mysql_colinfo (interp, fld, keyw)
-     Tcl_Interp  *interp;
+static Tcl_Obj *
+mysql_colinfo (interp,objc,objv,fld,keyw)
+     Tcl_Interp *interp;
+     int         objc;
+     Tcl_Obj *CONST objv[];
      MYSQL_FIELD* fld ;
-     char* keyw ;
+     Tcl_Obj * keyw ;
 {
   char buf[MYSQL_SMALL_SIZE];
-  char keybuf[MYSQL_SMALL_SIZE];
   int idx ;
-  char* res ;
-  int retcode ;
   
-  for (idx = 0;
-       idx <= MYSQL_COL_K_MAX && strcmp (MysqlColkey[idx], keyw) != 0;
-       idx++) ;
+  if (Tcl_GetIndexFromObj(interp, keyw, MysqlColkey, "option",
+                          TCL_EXACT, &idx) != TCL_OK)
+    return NULL;
 
   switch (idx)
     {
     case MYSQL_COL_TABLE_K:
-      res = fld->table ;
-      break ;
+      return Tcl_NewStringObj(fld->table, -1) ;
     case MYSQL_COL_NAME_K:
-      res = fld->name ;
-      break ;
+      return Tcl_NewStringObj(fld->name, -1) ;
     case MYSQL_COL_TYPE_K:
       switch (fld->type)
 	{
 	case FIELD_TYPE_DECIMAL:
-	  res = "decimal";
-	  break;
+	  return Tcl_NewStringObj("decimal", -1);
 	case FIELD_TYPE_TINY:
-	  res = "tiny";
-	  break;
+	  return Tcl_NewStringObj("tiny", -1);
 	case FIELD_TYPE_SHORT:
-	  res = "short";
-	  break;
+	  return Tcl_NewStringObj("short", -1);
 	case FIELD_TYPE_LONG:
-	  res = "long" ;
-	  break ;
+	  return Tcl_NewStringObj("long", -1) ;
 	case FIELD_TYPE_FLOAT:
-	  res = "float";
-	  break;
+	  return Tcl_NewStringObj("float", -1);
 	case FIELD_TYPE_DOUBLE:
-	  res = "double";
-	  break;
+	  return Tcl_NewStringObj("double", -1);
 	case FIELD_TYPE_NULL:
-	  res = "null";
-	  break;
+	  return Tcl_NewStringObj("null", -1);
 	case FIELD_TYPE_TIMESTAMP:
-	  res = "timestamp";
-	  break;
+	  return Tcl_NewStringObj("timestamp", -1);
 	case FIELD_TYPE_LONGLONG:
-	  res = "long long";
-	  break;
+	  return Tcl_NewStringObj("long long", -1);
 	case FIELD_TYPE_INT24:
-	  res = "int24";
-	  break;
+	  return Tcl_NewStringObj("int24", -1);
 	case FIELD_TYPE_DATE:
-	  res = "date";
-	  break;
+	  return Tcl_NewStringObj("date", -1);
 	case FIELD_TYPE_TIME:
-	  res = "time";
-	  break;
+	  return Tcl_NewStringObj("time", -1);
 	case FIELD_TYPE_DATETIME:
-	  res = "date time";
-	  break;
+	  return Tcl_NewStringObj("date time", -1);
 	case FIELD_TYPE_YEAR:
-	  res = "year";
-	  break;
+	  return Tcl_NewStringObj("year", -1);
 	case FIELD_TYPE_NEWDATE:
-	  res = "new date";
-	  break;
+	  return Tcl_NewStringObj("new date", -1);
 	case FIELD_TYPE_ENUM:
-	  res = "enum"; /* fyll på??? */
-	  break;
+	  return Tcl_NewStringObj("enum", -1); /* fyll på??? */
 	case FIELD_TYPE_SET: /* samma */
-	  res = "set";
-	  break;
+	  return Tcl_NewStringObj("set", -1);
 	case FIELD_TYPE_TINY_BLOB:
-	  res = "tiny blob";
-	  break;
+	  return Tcl_NewStringObj("tiny blob", -1);
 	case FIELD_TYPE_MEDIUM_BLOB:
-	  res = "medium blob";
-	  break;
+	  return Tcl_NewStringObj("medium blob", -1);
 	case FIELD_TYPE_LONG_BLOB:
-	  res = "long blob";
-	  break;
+	  return Tcl_NewStringObj("long blob", -1);
 	case FIELD_TYPE_BLOB:
-	  res = "blob";
-	  break;
+	  return Tcl_NewStringObj("blob", -1);
 	case FIELD_TYPE_VAR_STRING:
-	  res = "var string";
-	  break;
+	  return Tcl_NewStringObj("var string", -1);
 	case FIELD_TYPE_STRING:
-	  res = "string" ;
-	  break ;
+	  return Tcl_NewStringObj("string", -1) ;
 	default:
 	  sprintf (buf, "column '%s' has weird datatype", fld->name) ;
-	  res = NULL ;
+          (void) mysql_prim_confl (interp,objc,objv,buf) ;
+	  return NULL ;
 	}
       break ;
     case MYSQL_COL_LENGTH_K:
-      sprintf (buf, "%d", fld->length) ;
-      res = buf ;
-      break ;
+      return Tcl_NewIntObj(fld->length) ;
     case MYSQL_COL_PRIMKEY_K:
-      sprintf (buf, "%c", (IS_PRI_KEY(fld->flags))?'1':'0') ;
-      res = buf ;
-      break ;
+      return Tcl_NewBooleanObj(IS_PRI_KEY(fld->flags)) ;
     case MYSQL_COL_NONNULL_K:
-      sprintf (buf, "%c", (IS_NOT_NULL(fld->flags))?'1':'0') ;
-      res = buf ;
-      break ;
-    default:
-      if (strlen (keyw) >= MYSQL_NAME_LEN)
-	{
-	  strncpy (keybuf, keyw, MYSQL_NAME_LEN) ;
-	  strcat (keybuf, "...") ;
-	}
-      else
-	strcpy (keybuf, keyw) ;
-
-      sprintf (buf, "unknown option: %s", keybuf) ;
-      res = NULL ;
+      return Tcl_NewBooleanObj(IS_NOT_NULL(fld->flags)) ;
+    default: /* should never happen */
+      (void) mysql_prim_confl (interp,objc,objv,"weirdness in mysql_colinfo") ;
+      return NULL ;
     }
-
-  if (res == NULL)
-    {
-      (void)mysql_prim_confl (buf) ;
-      retcode = 1 ;
-    }
-  else
-    {
-      Tcl_AppendElement (interp, res) ;
-      retcode = 0 ;
-    }
-
-  return retcode ;
 }
 
 
@@ -655,19 +561,39 @@ mysql_colinfo (interp, fld, keyw)
  *
  */
 
-void
+static void
 Mysqltcl_Kill (clientData)
     ClientData clientData;
 {
-  int i ;
+  Tcl_HashEntry *entryPtr;
+  Tcl_HashSearch search;
+  MysqlTclHandle *handle;
+  int wasdeleted=0;
 
-  for (i = 0; i < MYSQL_HANDLES; i++)
-    {
-      if (MysqlHandle[i].connection != 0)
-	mysql_close (MysqlHandle[i].mysql) ;
-    }
-  
-  handle_init () ;
+  for (entryPtr=Tcl_FirstHashEntry(&handleTable,&search); 
+       entryPtr!=NULL;
+       entryPtr=Tcl_NextHashEntry(&search)) {
+    wasdeleted=1;
+    handle=(MysqlTclHandle *)Tcl_GetHashValue(entryPtr);
+
+    if (handle->connection == 0) continue;
+
+    mysql_close (handle->connection) ;
+
+    handle->connection = (MYSQL *)0 ;
+    handle->host[0] = '\0' ;
+    handle->database[0] = '\0' ;
+    
+    if (handle->result != NULL)
+      mysql_free_result (handle->result) ;
+    
+    handle->result = NULL ;
+    handle->res_count = 0 ;
+  }
+  if (wasdeleted) {
+    Tcl_DeleteHashTable(&handleTable);
+    Tcl_InitHashTable (&handleTable, TCL_STRING_KEYS);
+  }
 }
 
 
@@ -686,58 +612,55 @@ int
 Mysqltcl_Init (interp)
     Tcl_Interp *interp;
 {
-  int i;
   char nbuf[MYSQL_SMALL_SIZE];
 
   /*
    * Initialize mySQL proc structures 
    */
-  handle_init () ;
+  /* handle_init () ; */
 
   /*
    * Initialize the new Tcl commands.
    * Deleting any command will close all connections.
    */
-  Tcl_CreateCommand (interp, "mysqlconnect", Mysqltcl_Connect, (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqluse",     Mysqltcl_Use,     (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlsel",     Mysqltcl_Sel,     (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlnext",    Mysqltcl_Next,    (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlseek",    Mysqltcl_Seek,    (ClientData)NULL,
-                     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlmap",     Mysqltcl_Map,     (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlexec",    Mysqltcl_Exec,    (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlclose",   Mysqltcl_Close,   (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlinfo",    Mysqltcl_Info,    (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlresult",  Mysqltcl_Result,  (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlcol",     Mysqltcl_Col,     (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlstate",   Mysqltcl_State,   (ClientData)NULL,
-		     Mysqltcl_Kill);
-  Tcl_CreateCommand (interp, "mysqlinsertid",Mysqltcl_InsertId,(ClientData)NULL,
-		     Mysqltcl_Kill);
+  ADD_CMD(mysqlconnect, Mysqltcl_Connect);
+  ADD_CMD(mysqluse, Mysqltcl_Use);
+  ADD_CMD(mysqlescape, Mysqltcl_Escape);
+  ADD_CMD(mysqlsel, Mysqltcl_Sel);
+  ADD_CMD(mysqlnext, Mysqltcl_Next);
+  ADD_CMD(mysqlseek, Mysqltcl_Seek);
+  ADD_CMD(mysqlmap, Mysqltcl_Map);
+  ADD_CMD(mysqlexec, Mysqltcl_Exec);
+  ADD_CMD(mysqlclose, Mysqltcl_Close);
+  ADD_CMD(mysqlinfo, Mysqltcl_Info);
+  ADD_CMD(mysqlresult, Mysqltcl_Result);
+  ADD_CMD(mysqlcol, Mysqltcl_Col);
+  ADD_CMD(mysqlstate, Mysqltcl_State);
+  ADD_CMD(mysqlinsertid, Mysqltcl_InsertId);
 
   /* Initialize mysqlstatus global array. */
   clear_msg(interp);
+  
+  /* Initialize HashTable for mysql handles */
+  Tcl_InitHashTable (&handleTable, TCL_STRING_KEYS);
 
   /* Link the null value element to the corresponding C variable. */
-  if ((MysqlNullvalue = (char*)malloc (12)) == NULL)
+  if ((MysqlNullvalue = (char*)Tcl_Alloc (12)) == NULL)
     {
-      fprintf (stderr, "*** mysqltcl: out of memory\n") ;
+      panic("*** mysqltcl: out of memory\n") ;
       return TCL_ERROR ;
     }
   (void)strcpy (MysqlNullvalue, MYSQL_NULLV_INIT);
   (void)sprintf (nbuf, "%s(%s)", MysqlStatusArr, MYSQL_STATUS_NULLV) ;
-  Tcl_LinkVar (interp, nbuf, (char*)&MysqlNullvalue, TCL_LINK_STRING) ;
+  if (Tcl_LinkVar (interp, nbuf,
+                   (char*)&MysqlNullvalue, TCL_LINK_STRING) != TCL_OK)
+    return TCL_ERROR;
 
+  /* Register the handle object type */
+  Tcl_RegisterObjType(&mysqlHandleType);
+
+  if (Tcl_PkgProvide(interp, PACKAGE, VERSION) != TCL_OK)
+    return TCL_ERROR;
   /* A little sanity check.
    * If this message appears you must change the source code and recompile.
    */
@@ -756,7 +679,7 @@ Mysqltcl_Init (interp)
  *
  * Mysqltcl_Connect
  * Implements the mysqlconnect command:
- * usage: mysqlconnect [-user user [-password password]] ?server-host?
+ * usage: mysqlconnect ?option value ...?
  *	                
  * Results:
  *      handle - a character string of newly open handle
@@ -764,87 +687,89 @@ Mysqltcl_Init (interp)
  *      TCL_ERROR - connect not successful - error message returned
  */
 
-int
-Mysqltcl_Connect (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Connect)
 {
-  int        hand = -1;
-  int        i;
-  char       buf[MYSQL_BUFF_SIZE];
-  MYSQL * connect, * mysql ;
+  int        i, idx;
   char *hostname = NULL;
   char *user = NULL;
   char *password = NULL;
-  
-  /* Pro-forma check (should never fail). */
-  if (mysql_prologue (interp, argc, argv, 1, NULL, "[-user user [-password password]] ?hostname?") < 0)
+  char *db = NULL;
+  int port = 0;
+  char *socket = NULL;
+  MysqlTclHandle *handle;
+  static int HandleNum=0;
+
+  if (!(objc & 1) || objc>8) {
+    Tcl_WrongNumArgs(interp, 1, objv, "?option value ...?");
+	return TCL_ERROR;
+  }
+              
+  for (i = 1; i < objc; i++) {
+    if (Tcl_GetIndexFromObj(interp, objv[i], MysqlConnectOpt, "option",
+                          0, &idx) != TCL_OK)
     return TCL_ERROR;
-
-  for (i = 1; i < argc; i++) {
-    if (i < argc - 1 && *argv[i] == '-') {
-      if (user == NULL && strcmp(argv[i]+1, "user") == 0) {
-	user = argv[i+1];
-	i++;
-      } else if (user != NULL && password == NULL && strcmp(argv[i]+1, "password") == 0) {
-	password = argv[i+1];
-	i++;
-      } else {
-	return mysql_prim_confl("Usage: mysqlconnect [-user user [-password password]] ?hostname?");
-      }
-    } else if (i == argc - 1) {
-      hostname = argv[i];
-    } else {
-      return mysql_prim_confl("Usage: mysqlconnect [-user user [-password password]] ?hostname?");
-    }
+    
+    switch (idx)
+        {
+        case MYSQL_CONNHOST_OPT:
+            hostname = Tcl_GetString(objv[++i]);
+            break;
+        case MYSQL_CONNUSER_OPT:
+            user = Tcl_GetString(objv[++i]);
+            break;
+        case MYSQL_CONNPASSWORD_OPT:
+            password = Tcl_GetString(objv[++i]);
+            break;
+        case MYSQL_CONNDB_OPT:
+            db = Tcl_GetString(objv[++i]);
+            break;
+        case MYSQL_CONNPORT_OPT:
+            if(Tcl_GetIntFromObj(interp, objv[++i], &port) != TCL_OK)
+                return TCL_ERROR;
+            break;
+        case MYSQL_CONNSOCKET_OPT:
+            socket = Tcl_GetString(objv[++i]);
+            break;
+        default:
+	        return mysql_prim_confl(interp,objc,objv,"Weirdness in options");            
+        }
   }
 
-  /* Find an unused handle. */
-  for (i = 0; i < MYSQL_HANDLES; i++) {
-    if (MysqlHandle[i].connection == 0) {
-      hand = i;
-      break;
-    }
+  handle=(MysqlTclHandle *)Tcl_Alloc(sizeof(MysqlTclHandle));
+
+  if (handle == 0) {
+    panic("no memory for handle");
+    return TCL_ERROR;
+  }
+  handle_init(handle);
+  /* not MT-safe, static  */
+  handle->number=HandleNum++;
+
+  handle->connection = mysql_init(NULL);
+
+  if (!mysql_real_connect (handle->connection, hostname, user,
+                                password, db, port, socket, 0))
+  {
+      mysql_server_confl (interp,objc,objv,handle->connection);
+      mysql_close (handle->connection);
+      handle->connection = 0;
+      Tcl_Free((char *)handle);
+      return TCL_ERROR;
   }
 
-  /* Malloc some memory for the mysql pointer */
-  mysql = (MYSQL *)malloc(sizeof(MYSQL));
+  if (hostname) {
+    strncpy (handle->host, hostname, MYSQL_NAME_LEN) ;
+    handle->host[MYSQL_NAME_LEN - 1] = '\0' ;
+  } else {
+    strcpy (handle->host, "localhost");
+  }
 
-  if (hand == -1)
-    return mysql_prim_confl ("no mySQL handles available");
+  if (db) {
+    strncpy (handle->database, db, MYSQL_NAME_LEN) ;
+    handle->database[MYSQL_NAME_LEN - 1] = '\0' ;
+  }
 
-  if (hostname != NULL)
-    {
-      connect = mysql_connect (mysql, hostname, user, password) ;
-	MysqlHandle[hand].mysql = mysql;
-      strncpy (MysqlHandle[hand].host, argv[1], MYSQL_NAME_LEN) ;
-      MysqlHandle[hand].host[MYSQL_NAME_LEN - 1] = '\0' ;
-    }
-  else
-    {
-      if (gethostname (buf, MYSQL_NAME_LEN) == 0)
-	{
-	  connect = mysql_connect (mysql, (char*)NULL, user, password) ;
-	MysqlHandle[hand].mysql = mysql;
-	  strcpy (MysqlHandle[hand].host, buf) ;
-	}
-      else
-	return mysql_posix_confl ("gethostname") ;
-    }
-
-  if (connect == 0)
-    {
-      MysqlHandle[hand].connection = (MYSQL *)0 ; /* Just to be sure. */
-      return mysql_server_confl (hand, MysqlHandle[hand].mysql);
-    }
-  else
-    MysqlHandle[hand].connection = connect ;
-
-  /* Construct handle and return. */
-  sprintf(buf, "%s%d", MysqlHandlePrefix, hand);
-  Tcl_SetResult(interp, buf, TCL_VOLATILE);
+  Tcl_SetObjResult(interp, Tcl_NewHandleObj(handle));
 
   return TCL_OK;
 }
@@ -861,24 +786,54 @@ Mysqltcl_Connect (clientData, interp, argc, argv)
  *	Sets current database to dbname.
  */
 
-Mysqltcl_Use (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Use)
 {
-  int hand;
-  
-  if ((hand = mysql_prologue(interp, argc, argv, 3, get_handle_conn,
-			    "handle dbname")) < 0)
+  int len;
+  char *db;
+  MysqlTclHandle *handle;  
+
+  if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_CONN,
+			    "handle dbname")) == 0)
     return TCL_ERROR;
 
-  if (strlen (argv[2]) >= MYSQL_NAME_LEN)
-    return mysql_prim_confl ("database name too long") ;
-  if (mysql_select_db (MysqlHandle[hand].mysql, argv[2]) < 0)
-    return mysql_server_confl (hand, MysqlHandle[hand].mysql) ;
+  db=Tcl_GetStringFromObj(objv[2], &len);
+  if (len >= MYSQL_NAME_LEN)
+    return mysql_prim_confl (interp,objc,objv,"database name too long") ;
+  if (mysql_select_db (handle->connection, db) < 0)
+    return mysql_server_confl (interp,objc,objv,handle->connection) ;
 
-  strcpy (MysqlHandle[hand].database, argv[2]) ;
+  strcpy (handle->database, db) ;
+  return TCL_OK;
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Mysqltcl_Escape
+ *    Implements the mysqlescape command:
+ *    usage: mysqlescape string
+ *	                
+ *    results:
+ *	Escaped string for use in queries.
+ */
+
+DEFINE_CMD(Mysqltcl_Escape)
+{
+  int len;
+  char *inString, *outString;
+  
+  if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, "string");
+      return TCL_ERROR;
+  }
+
+  inString=Tcl_GetStringFromObj(objv[1], &len);
+  outString=Tcl_Alloc((len<<1) + 1);
+  len=mysql_escape_string(outString, inString, len);
+  Tcl_SetStringObj(Tcl_GetObjResult(interp), outString, len);
+  Tcl_Free(outString);
   return TCL_OK;
 }
 
@@ -889,7 +844,7 @@ Mysqltcl_Use (clientData, interp, argc, argv)
  *
  * Mysqltcl_Sel
  *    Implements the mysqlsel command:
- *    usage: mysqlsel handle sel-query
+ *    usage: mysqlsel handle sel-query ?-list|-flatlist?
  *	                
  *    results:
  *
@@ -897,39 +852,82 @@ Mysqltcl_Use (clientData, interp, argc, argv)
  *    Stores new results.
  */
 
-Mysqltcl_Sel (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Sel)
 {
-  int     hand;
+  int isList=0, isFlatList=0, i, colCount;
+  Tcl_Obj *res, *resList;
+  char *query;
+  int queryLen;
+  MYSQL_ROW row;
+  Tcl_DString queryDS;
+  MysqlTclHandle *handle;
   
-  if ((hand = mysql_prologue(interp, argc, argv, 3, get_handle_db,
-			    "handle sel-query")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 3, 4, CL_DB,
+			    "handle sel-query ?-list|-flatlist?")) == 0)
     return TCL_ERROR;
 
+  if (objc==4) {
+    if (!strcmp(Tcl_GetString(objv[3]), "-list"))
+        isList=1;
+    else if (!strcmp(Tcl_GetString(objv[3]), "-flatlist"))
+        isFlatList=1;
+    else
+	return mysql_prim_confl (interp,objc,objv,"last arg should be -list or -flatlist") ;
+  }
+       
   /* Flush any previous result. */
-  if (MysqlHandle[hand].result != NULL)
+  if (handle->result != NULL)
     {
-      mysql_free_result (MysqlHandle[hand].result) ;
-      MysqlHandle[hand].result = NULL ;
+      mysql_free_result (handle->result) ;
+      handle->result = NULL ;
     }
 
-  if (mysql_query (MysqlHandle[hand].mysql, argv[2]) < 0)
-    return mysql_server_confl (hand, MysqlHandle[hand].connection) ;
+  query=Tcl_GetStringFromObj(objv[2], &queryLen);
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+  Tcl_UtfToExternalDString(NULL, query, -1, &queryDS);
+  query=Tcl_DStringValue(&queryDS);
+  queryLen=Tcl_DStringLength(&queryDS);
+#endif
+  if (mysql_real_query (handle->connection, query, queryLen)) {
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+    Tcl_DStringFree(&queryDS);
+#endif
+    return mysql_server_confl (interp,objc,objv,handle->connection);
+  }
 
-  if ((MysqlHandle[hand].result = mysql_store_result (MysqlHandle[hand].mysql)) == NULL)
+  if ((handle->result = mysql_store_result (handle->connection)) == NULL)
     {
-      (void)strcpy (interp->result, "-1") ;
+      if (!isFlatList && !isList)
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
+    } else {
+      colCount = handle->col_count = mysql_num_fields (handle->result) ;
+      res = Tcl_GetObjResult(interp);
+      if (isFlatList) {
+        handle->res_count = 0;
+        while ((row = mysql_fetch_row (handle->result)) != NULL)
+        {
+           for (i=0; i< colCount; i++, row++)
+              Tcl_ListObjAppendElement (interp, res,
+                Tcl_NewStringObj(*row?*row:MysqlNullvalue,-1));
+        }  
+      } else if (isList) {
+        handle->res_count = 0;
+        while ((row = mysql_fetch_row (handle->result)) != NULL)
+        {
+           resList = Tcl_NewListObj(0, NULL);
+           for (i=0; i< colCount; i++, row++)
+              Tcl_ListObjAppendElement (interp, resList,
+                Tcl_NewStringObj(*row?*row:MysqlNullvalue,-1));
+           Tcl_ListObjAppendElement (interp, res, resList);
+        }  
+      } else {
+        handle->res_count = mysql_num_rows (handle->result);
+        Tcl_SetIntObj(res, handle->res_count);
+     }
     }
-  else
-    {
-      MysqlHandle[hand].res_count = mysql_num_rows (MysqlHandle[hand].result) ;
-      MysqlHandle[hand].col_count = mysql_num_fields (MysqlHandle[hand].result) ;
-      (void)sprintf (interp->result, "%d", MysqlHandle[hand].res_count) ;
-    }
-
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+  Tcl_DStringFree(&queryDS);
+#endif
   return TCL_OK;
 }
 
@@ -942,33 +940,49 @@ Mysqltcl_Sel (clientData, interp, argc, argv)
  * usage: mysqlexec handle sql-statement
  *	                
  * Results:
+ * Number of affected rows on INSERT, UPDATE or DELETE, 0 otherwise.
  *
  * SIDE EFFECT: Flushes any pending result, even in case of conflict.
  */
 
-int
-Mysqltcl_Exec (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Exec)
 {
-  int     hand;
-  
-  if ((hand = mysql_prologue(interp, argc, argv, 3, get_handle_db,
-			    "handle sql-statement")) < 0)
+  MysqlTclHandle *handle;
+  char *query;
+  int queryLen;
+  int affected;
+  Tcl_DString queryDS;
+
+  if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_DB,
+			    "handle sql-statement")) == 0)
     return TCL_ERROR;
 
   /* Flush any previous result. */
-  if (MysqlHandle[hand].result != NULL)
+  if (handle->result != NULL)
     {
-      mysql_free_result (MysqlHandle[hand].result) ;
-      MysqlHandle[hand].result = NULL ;
+      mysql_free_result (handle->result) ;
+      handle->result = NULL ;
     }
 
-  if (mysql_query (MysqlHandle[hand].mysql, argv[2]) < 0)
-    return mysql_server_confl (hand, MysqlHandle[hand].mysql) ;
-
+  query=Tcl_GetStringFromObj(objv[2], &queryLen);
+  /* convert UTF internal to external representation */
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+  Tcl_UtfToExternalDString(NULL, query, -1, &queryDS);
+  query=Tcl_DStringValue(&queryDS);
+  queryLen=Tcl_DStringLength(&queryDS);
+#endif
+  if (mysql_real_query (handle->connection, query, queryLen)) {
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+    Tcl_DStringFree(&queryDS);
+#endif
+    return mysql_server_confl (interp,objc,objv,handle->connection);
+  } 
+  if ((affected=mysql_affected_rows(handle->connection)) < 0)
+    affected=0;
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+  Tcl_DStringFree(&queryDS);
+#endif
+  Tcl_SetIntObj(Tcl_GetObjResult(interp),affected);  
   return TCL_OK ;
 }
 
@@ -984,39 +998,34 @@ Mysqltcl_Exec (clientData, interp, argc, argv)
  *	next row from pending results as tcl list, or null list.
  */
 
-Mysqltcl_Next (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Next)
 {
-  int hand;
+  MysqlTclHandle *handle;
   int idx ;
   MYSQL_ROW row ;
-  char* val ;
+  Tcl_Obj *resList;
   
-  if ((hand = mysql_prologue(interp, argc, argv, 2, get_handle_res,
-			    "handle")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 2, 2, CL_RES,
+			    "handle")) == 0)
     return TCL_ERROR;
 
   
-  if (MysqlHandle[hand].res_count == 0)
+  if (handle->res_count == 0)
     return TCL_OK ;
-  else if ((row = mysql_fetch_row (MysqlHandle[hand].result)) == NULL)
+  else if ((row = mysql_fetch_row (handle->result)) == NULL)
     {
-      MysqlHandle[hand].res_count = 0 ;
-      return mysql_prim_confl ("result counter out of sync") ;
+      handle->res_count = 0 ;
+      return mysql_prim_confl (interp,objc,objv,"result counter out of sync") ;
     }
   else
-    MysqlHandle[hand].res_count-- ;
-  
-  for (idx = 0 ; idx < MysqlHandle[hand].col_count ; idx++)
+    handle->res_count-- ;
+
+  resList = Tcl_GetObjResult(interp);
+  for (idx = 0 ; idx < handle->col_count ; idx++, row++)
     {
-      if ((val = *row++) == NULL)
-	val = MysqlNullvalue ;
-      Tcl_AppendElement (interp, val) ;
+      Tcl_ListObjAppendElement (interp, resList,
+                                Tcl_NewStringObj(*row?*row:MysqlNullvalue,-1));
     }
-  
   return TCL_OK;
 }
 
@@ -1032,48 +1041,43 @@ Mysqltcl_Next (clientData, interp, argc, argv)
  *	number of remaining rows
  */
 
-Mysqltcl_Seek (clientData, interp, argc, argv)
-    ClientData   clientData;
-    Tcl_Interp  *interp;
-    int          argc;
-    char       **argv;
+DEFINE_CMD(Mysqltcl_Seek)
 {
-    int hand;
-    int res;
+    MysqlTclHandle *handle;
     int row;
     int total;
    
-    if ((hand = mysql_prologue(interp, argc, argv, 3, get_handle_res,
-                              " handle row-index")) < 0)
+    if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_RES,
+                              " handle row-index")) == 0)
       return TCL_ERROR;
 
-    if ((res = Tcl_GetInt (interp, argv[2], &row)) != TCL_OK)
-      return res;
+    if (Tcl_GetIntFromObj (interp, objv[2], &row) != TCL_OK)
+      return TCL_ERROR;
     
-    total = mysql_num_rows (MysqlHandle[hand].result);
+    total = mysql_num_rows (handle->result);
     
     if (total + row < 0)
       {
-	mysql_data_seek (MysqlHandle[hand].result, 0);
-	MysqlHandle[hand].res_count = total;
+	mysql_data_seek (handle->result, 0);
+	handle->res_count = total;
       }
     else if (row < 0)
       {
-	mysql_data_seek (MysqlHandle[hand].result, total + row);
-	MysqlHandle[hand].res_count = -row;
+	mysql_data_seek (handle->result, total + row);
+	handle->res_count = -row;
       }
     else if (row >= total)
       {
-	mysql_data_seek (MysqlHandle[hand].result, row);
-	MysqlHandle[hand].res_count = 0;
+	mysql_data_seek (handle->result, row);
+	handle->res_count = 0;
       }
     else
       {
-	mysql_data_seek (MysqlHandle[hand].result, row);
-	MysqlHandle[hand].res_count = total - row;
+	mysql_data_seek (handle->result, row);
+	handle->res_count = total - row;
       }
 
-    (void)sprintf (interp->result, "%d", MysqlHandle[hand].res_count) ;
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(handle->res_count)) ;
     return TCL_OK;
 }
 
@@ -1093,85 +1097,87 @@ Mysqltcl_Seek (clientData, interp, argc, argv)
  * The 'continue' and 'break' commands may be used with their usual effect.
  */
 
-int
-Mysqltcl_Map (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Map)
 {
   int code ;
   int count ;
-  int hand ;
+  MysqlTclHandle *handle;
   int idx ;
-  int listArgc ;
-  char** listArgv ;
+  int listObjc ;
+  Tcl_Obj** listObjv ;
   MYSQL_ROW row ;
-  char* val ;
+  int *val;
   
-  if ((hand = mysql_prologue(interp, argc, argv, 4, get_handle_res,
-			    "handle binding-list script")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 4, 4, CL_RES,
+			    "handle binding-list script")) == 0)
     return TCL_ERROR;
 
-  if (Tcl_SplitList (interp, argv[2], &listArgc, &listArgv) != TCL_OK)
+  if (Tcl_ListObjGetElements (interp, objv[2], &listObjc, &listObjv) != TCL_OK)
     return TCL_ERROR ;
   
-  if (listArgc > MysqlHandle[hand].col_count)
+  if (listObjc > handle->col_count)
     {
-      ckfree ((char*)listArgv) ;
-      return mysql_prim_confl ("too many variables in binding list") ;
+      return mysql_prim_confl (interp,objc,objv,"too many variables in binding list") ;
     }
   else
-    count = (listArgc < MysqlHandle[hand].col_count)?listArgc
-      :MysqlHandle[hand].col_count ;
+    count = (listObjc < handle->col_count)?listObjc
+      :handle->col_count ;
   
-  while (MysqlHandle[hand].res_count > 0)
+  val=(int*)Tcl_Alloc((count * sizeof (int)));
+  for (idx=0; idx<count; idx++) {
+    if (Tcl_GetString(listObjv[idx])[0] != '-')
+        val[idx]=1;
+    else
+        val[idx]=0;
+  }
+  
+  while (handle->res_count > 0)
     {
       /* Get next row, decrement row counter. */
-      if ((row = mysql_fetch_row (MysqlHandle[hand].result)) == NULL)
+      if ((row = mysql_fetch_row (handle->result)) == NULL)
 	{
-	  MysqlHandle[hand].res_count = 0 ;
-	  ckfree ((char*)listArgv) ;
-	  return mysql_prim_confl ("result counter out of sync") ;
+	  handle->res_count = 0 ;
+          Tcl_Free((char *)val);
+	  return mysql_prim_confl (interp,objc,objv,"result counter out of sync") ;
 	}
       else
-	MysqlHandle[hand].res_count-- ;
+	handle->res_count-- ;
       
       /* Bind variables to column values. */
-      for (idx = 0; idx < count; idx++)
+      for (idx = 0; idx < count; idx++, row++)
 	{
-	  if (listArgv[idx][0] != '-')
+	  if (val[idx])
 	    {
-	      if ((val = *row++) == NULL)
-		val = MysqlNullvalue ;
-	      if (Tcl_SetVar (interp, listArgv[idx], val, TCL_LEAVE_ERR_MSG)
-		  == NULL)
+	      if (Tcl_ObjSetVar2 (interp, 
+				  listObjv[idx], NULL, 
+				  Tcl_NewStringObj(*row?*row:MysqlNullvalue, -1),
+                                  TCL_LEAVE_ERR_MSG) == NULL)
 		{
-		  ckfree ((char*)listArgv) ;
+                  Tcl_Free((char *)val);
 		  return TCL_ERROR ;
 		}
 	    }
-	  else
-	    row++ ;
 	}
 
       /* Evaluate the script. */
-      if ((code = Tcl_Eval (interp, argv[3])) != TCL_OK)
-	switch (code) 
+#if (TCL_MAJOR_VERSION==8 && TCL_MINOR_VERSION>0) || TCL_MAJOR_VERSION>8
+      switch(code=Tcl_EvalObjEx(interp, objv[3],0))
+#else
+ 	switch (code = Tcl_EvalObj (interp, objv[3]))
+#endif
 	  {
 	  case TCL_CONTINUE:
-	    continue ;
+	  case TCL_OK:
 	    break ;
 	  case TCL_BREAK:
-	    ckfree ((char*)listArgv) ;
+            Tcl_Free((char *)val);
 	    return TCL_OK ;
-	    break ;
 	  default:
-	    ckfree ((char*)listArgv) ;
+            Tcl_Free((char *)val);
 	    return code ;
 	  }
     }
-  ckfree ((char*)listArgv) ;
+  Tcl_Free((char *)val);
   return TCL_OK ;
 }
 
@@ -1185,58 +1191,53 @@ Mysqltcl_Map (clientData, interp, argc, argv)
  *
  */
 
-int
-Mysqltcl_Info (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Info)
 {
-  char buf[MYSQL_BUFF_SIZE];
   int count ;
-  int hand ;
+  MysqlTclHandle *handle;
   int idx ;
   MYSQL_RES* list ;
   MYSQL_ROW row ;
   char* val ;
+  Tcl_Obj *resList;
   
   /* We can't fully check the handle at this stage. */
-  if ((hand = mysql_prologue(interp, argc, argv, 3, get_handle_plain,
-			    "handle option")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_PLAIN,
+			    "handle option")) == 0)
     return TCL_ERROR;
 
-  for (idx = 0;
-       idx <= MYSQL_INF_OPT_MAX && strcmp (argv[2], MysqlDbOpt[idx]) != 0;
-       idx++) ;
+  if (Tcl_GetIndexFromObj(interp, objv[2], MysqlDbOpt, "option",
+                          TCL_EXACT, &idx) != TCL_OK)
+    return TCL_ERROR;
 
   /* First check the handle. Checking depends on the option. */
   switch (idx)
     {
     case MYSQL_INFNAME_OPT:
     case MYSQL_INFTABLES_OPT:
-      hand = get_handle_db (argv[1]) ;
+      handle = get_handle(interp,objc,objv,CL_DB) ;
       break ;
     case MYSQL_INFNAMEQ_OPT:
-      if ((hand = get_handle_conn (argv[1])) >= 0)
+      if (handle = get_handle(interp,objc,objv,CL_CONN))
 	{
-	  if (MysqlHandle[hand].database[0] == '\0')
+	  if (handle->database[0] == '\0')
 	    return TCL_OK ; /* Return empty string if no current db. */
 	}
       break ;
     case MYSQL_INFHOST_OPT:
     case MYSQL_INFLIST_OPT:
-      hand = get_handle_conn (argv[1]) ;
+      /* !!! */
+      handle = get_handle(interp,objc,objv,CL_CONN);
       break ;
     case MYSQL_INFHOSTQ_OPT:
-      if (MysqlHandle[hand].connection == 0)
+      if (handle->connection == 0)
 	return TCL_OK ; /* Return empty string if not connected. */
       break ;
-    default: /* unknown option */
-      sprintf (buf, "'%s' unknown option", argv[2]);
-      return mysql_prim_confl (buf) ;
+    default: /* should never happen */
+      return mysql_prim_confl (interp,objc,objv,"weirdness in Mysqltcl_Info") ;
     }
 
-  if (hand < 0)
+  if (handle == 0)
       return TCL_ERROR ;
 
   /* Handle OK, return the requested info. */
@@ -1244,36 +1245,39 @@ Mysqltcl_Info (clientData, interp, argc, argv)
     {
     case MYSQL_INFNAME_OPT:
     case MYSQL_INFNAMEQ_OPT:
-      strcpy (interp->result, MysqlHandle[hand].database) ;
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(handle->database, -1));
       break ;
     case MYSQL_INFTABLES_OPT:
-      if ((list = mysql_list_tables (MysqlHandle[hand].mysql,(char*)NULL)) == NULL)
-	return mysql_prim_confl ("could not access table names; server may have gone away") ;
+      if ((list = mysql_list_tables (handle->connection,(char*)NULL)) == NULL)
+	return mysql_server_confl (interp,objc,objv,handle->connection);
 
+      resList = Tcl_GetObjResult(interp);
       for (count = mysql_num_rows (list); count > 0; count--)
 	{
 	  val = *(row = mysql_fetch_row (list)) ;
-	  Tcl_AppendElement (interp, (val == NULL)?"":val) ;
+          Tcl_ListObjAppendElement (interp, resList, Tcl_NewStringObj((val == NULL)?"":val,-1));
 	}
       mysql_free_result (list) ;
       break ;
     case MYSQL_INFHOST_OPT:
     case MYSQL_INFHOSTQ_OPT:
-      strcpy (interp->result, MysqlHandle[hand].host) ;
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(handle->host, -1));
       break ;
     case MYSQL_INFLIST_OPT:
-      if ((list = mysql_list_dbs (MysqlHandle[hand].mysql,(char*)NULL)) == NULL)
-	return mysql_prim_confl ("could not access database names; server may have gone away") ;
+      if ((list = mysql_list_dbs (handle->connection,(char*)NULL)) == NULL)
+	return mysql_server_confl (interp,objc,objv,handle->connection);
 
+      resList = Tcl_GetObjResult(interp);
       for (count = mysql_num_rows (list); count > 0; count--)
 	{
 	  val = *(row = mysql_fetch_row (list)) ;
-	  Tcl_AppendElement (interp, (val == NULL)?"":val) ;
+          Tcl_ListObjAppendElement (interp, resList,
+                                    Tcl_NewStringObj((val == NULL)?"":val,-1));
 	}
       mysql_free_result (list) ;
       break ;
     default: /* should never happen */
-      return mysql_prim_confl ("weirdness in Mysqltcl_Info") ;
+      return mysql_prim_confl (interp,objc,objv,"weirdness in Mysqltcl_Info") ;
     }
   return TCL_OK ;
 }
@@ -1288,29 +1292,19 @@ Mysqltcl_Info (clientData, interp, argc, argv)
  *
  */
 
-int
-Mysqltcl_Result (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Result)
 {
-  char buf[MYSQL_BUFF_SIZE];
-  int count ;
-  int hand ;
   int idx ;
-  MYSQL_RES* list ;
-  MYSQL_ROW row ;
-
+  MysqlTclHandle *handle;
 
   /* We can't fully check the handle at this stage. */
-  if ((hand = mysql_prologue(interp, argc, argv, 3, get_handle_plain,
-			    " handle option")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_PLAIN,
+			    " handle option")) == 0)
     return TCL_ERROR;
 
-  for (idx = 0;
-       idx <= MYSQL_RES_OPT_MAX && strcmp (argv[2], MysqlResultOpt[idx]) != 0;
-       idx++) ;
+  if (Tcl_GetIndexFromObj(interp, objv[2], MysqlResultOpt, "option",
+                          TCL_EXACT, &idx) != TCL_OK)
+    return TCL_ERROR;
 
   /* First check the handle. Checking depends on the option. */
   switch (idx)
@@ -1318,23 +1312,23 @@ Mysqltcl_Result (clientData, interp, argc, argv)
     case MYSQL_RESROWS_OPT:
     case MYSQL_RESCOLS_OPT:
     case MYSQL_RESCUR_OPT:
-      hand = get_handle_res (argv[1]) ;
+      handle = get_handle (interp,objc,objv,CL_RES) ;
       break ;
     case MYSQL_RESROWSQ_OPT:
     case MYSQL_RESCOLSQ_OPT:
     case MYSQL_RESCURQ_OPT:
-      if ((hand = get_handle_db (argv[1])) >= 0)
+      if ((handle = get_handle (interp,objc,objv,CL_DB)) >= 0)
 	{
-	  if (MysqlHandle[hand].result == NULL)
+	  if (handle->result == NULL)
 	    return TCL_OK ; /* Return empty string if no pending result. */
 	}
       break ;
-    default: /* unknown option */
-      sprintf (buf, "'%s' unknown option", argv[2]);
-      return mysql_prim_confl (buf) ;
+    default: /* should never happen */
+      return mysql_prim_confl (interp,objc,objv,"weirdness in Mysqltcl_Result") ;
     }
 
-  if (hand < 0)
+
+  if (handle == 0)
     return TCL_ERROR ;
 
   /* Handle OK; return requested info. */
@@ -1342,18 +1336,20 @@ Mysqltcl_Result (clientData, interp, argc, argv)
     {
     case MYSQL_RESROWS_OPT:
     case MYSQL_RESROWSQ_OPT:
-      sprintf (interp->result, "%d", MysqlHandle[hand].res_count) ;
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(handle->res_count));
       break ;
     case MYSQL_RESCOLS_OPT:
     case MYSQL_RESCOLSQ_OPT:
-      sprintf (interp->result, "%d", MysqlHandle[hand].col_count) ;
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(handle->col_count));
       break ;
     case MYSQL_RESCUR_OPT:
     case MYSQL_RESCURQ_OPT:
-      sprintf (interp->result, "%d", mysql_num_rows (MysqlHandle[hand].result)
-	       - MysqlHandle[hand].res_count) ;
+      Tcl_SetObjResult(interp,
+                       Tcl_NewIntObj(mysql_num_rows (handle->result)
+	                             - handle->res_count)) ;
+      break ;
     default:
-      ;
+      return mysql_prim_confl (interp,objc,objv,"weirdness in Mysqltcl_Result");
     }
   return TCL_OK ;
 }
@@ -1375,110 +1371,82 @@ Mysqltcl_Result (clientData, interp, argc, argv)
  * SIDE EFFECT: '-current' disturbs the field position of the result.
  */
 
-Mysqltcl_Col (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Col)
 {
-  char buf[MYSQL_BUFF_SIZE];
   int coln ;
-  int conflict ;
   int current_db ;
-  int hand;
+  MysqlTclHandle *handle;
   int idx ;
-  int listArgc ;
-  char** listArgv ;
+  int listObjc ;
+  Tcl_Obj **listObjv, *colinfo, *resList, *resSubList;
   MYSQL_FIELD* fld ;
   MYSQL_RES* result ;
-  char* sep ;
-  int simple ;
+  char *argv ;
   
   /* This check is enough only without '-current'. */
-  if ((hand = mysql_prologue(interp, argc, argv, 4, get_handle_db,
-			    "handle table-name option ?option ...?")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 4, 99, CL_DB,
+			    "handle table-name option ?option ...?")) == 0)
     return TCL_ERROR;
 
   /* Fetch column info.
    * Two ways: explicit database and table names, or current.
    */
-  current_db = strcmp (argv[2], "-current") == 0 ;
+  argv=Tcl_GetStringFromObj(objv[2],NULL);
+  current_db = strcmp (argv, "-current") == 0;
   
-  if (current_db)
-    {
-      if ((hand = get_handle_res (argv[1])) < 0)
+  if (current_db) {
+      if ((handle = get_handle (interp,objc,objv,CL_RES)) == 0)
 	return TCL_ERROR ;
       else
-	result = MysqlHandle[hand].result ;
-    }
-  else
-    {
-/*      if ((result = mysql_list_fields (MysqlHandle[hand].connection, argv[2], (char*)NULL)) == NULL)	*/
-      if ((result = mysql_list_fields (MysqlHandle[hand].mysql, argv[2], (char*)NULL)) == NULL)
-	{
-	  sprintf (buf, "no column info for table '%s'; %s", argv[2],
-		   "server may have gone away") ;
-	  return mysql_prim_confl (buf) ;
+	result = handle->result ;
+  } else {
+      if ((result = mysql_list_fields (handle->connection, argv, (char*)NULL)) == NULL) {
+	  return mysql_server_confl (interp,objc,objv,handle->connection) ;
 	}
-    }
-
+  }
   /* Must examine the first specifier at this point. */
-  if (Tcl_SplitList (interp, argv[3], &listArgc, &listArgv) != TCL_OK)
+  if (Tcl_ListObjGetElements (interp, objv[3], &listObjc, &listObjv) != TCL_OK)
     return TCL_ERROR ;
-
-  conflict = 0 ;
-  simple = (argc == 4) && (listArgc == 1) ;
-
-  if (simple)
-    {
+  resList = Tcl_GetObjResult(interp);
+  if (objc == 4 && listObjc == 1) {
       mysql_field_seek (result, 0) ;
       while ((fld = mysql_fetch_field (result)) != NULL)
-	if (mysql_colinfo (interp, fld, argv[3]))
-	  {
-	    conflict = 1 ;
-	    break ;
-	  }
-    }
-  else if (listArgc > 1)
-    {
+        if ((colinfo = mysql_colinfo (interp,objc,objv,fld, objv[3])) != NULL) {
+            Tcl_ListObjAppendElement (interp, resList, colinfo);
+        } else {
+            goto conflict;
+	    }
+  } else if (objc == 4 && listObjc > 1) {
       mysql_field_seek (result, 0) ;
-      for (sep = "{"; (fld = mysql_fetch_field (result)) != NULL; sep = " {")
-	{
-	  Tcl_AppendResult (interp, sep, (char*)NULL) ;
-	  for (coln = 0; coln < listArgc; coln++)
-	    if (mysql_colinfo (interp, fld, listArgv[coln]))
-	      {
-		conflict = 1 ;
-		break ;
-	      }
-	  if (conflict)
-	    break ;
-	  Tcl_AppendResult (interp, "}", (char*)NULL) ;
+      while ((fld = mysql_fetch_field (result)) != NULL) {
+        resSubList = Tcl_NewListObj(0, NULL);
+        for (coln = 0; coln < listObjc; coln++)
+            if ((colinfo = mysql_colinfo (interp,objc,objv,fld, listObjv[coln])) != NULL) {
+                Tcl_ListObjAppendElement (interp, resSubList, colinfo);
+            } else {
+               goto conflict; 
+            }
+        Tcl_ListObjAppendElement (interp, resList, resSubList);
 	}
-      ckfree ((char*)listArgv) ;
-    }
-  else
-    {
-      ckfree ((char*)listArgv) ; /* listArgc == 1, no splitting */
-      for (idx = 3, sep = "{"; idx < argc; idx++, sep = " {")
-	{
-	  Tcl_AppendResult (interp, sep, (char*)NULL) ;
-	  mysql_field_seek (result, 0) ;
-	  while ((fld = mysql_fetch_field (result)) != NULL)
-	    if (mysql_colinfo (interp, fld, argv[idx]))
-	      {
-		conflict = 1 ;
-		break ;
-	      }
-	  if (conflict)
-	    break ;
-	  Tcl_AppendResult (interp, "}", (char*)NULL) ;
-	}
-    }
+  } else {
+      for (idx = 3; idx < objc; idx++) {
+        resSubList = Tcl_NewListObj(0, NULL);
+        mysql_field_seek (result, 0) ;
+        while ((fld = mysql_fetch_field (result)) != NULL)
+        if ((colinfo = mysql_colinfo (interp,objc,objv,fld, objv[idx])) != NULL) {
+            Tcl_ListObjAppendElement (interp, resSubList, colinfo);
+        } else {
+            goto conflict; 
+        }
+        Tcl_ListObjAppendElement (interp, resList, resSubList);
+      }
+  }
+  if (!current_db) mysql_free_result (result) ;
+  return TCL_OK;
   
-  if (!current_db)
-    mysql_free_result (result) ;
-  return (conflict)?TCL_ERROR:TCL_OK ;
+  conflict:
+    if (!current_db) mysql_free_result (result) ;
+    return TCL_ERROR;
 }
 
 
@@ -1487,41 +1455,38 @@ Mysqltcl_Col (clientData, interp, argc, argv)
  *
  * Mysqltcl_State
  *    Implements the mysqlstate command:
- *    usage: mysqlstate ?-numeric? handle 
+ *    usage: mysqlstate handle ?-numeric?
  *	                
  */
 
-Mysqltcl_State (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_State)
 {
-  int hi;
-  char* hp ;
-  int numeric ;
-  char* res ;
+  MysqlTclHandle *handle;
+  int numeric=0 ;
+  Tcl_Obj *res;
   
-  if (mysql_prologue(interp, argc, argv, 2, NULL, "?-numeric? handle") < 0)
+  if (mysql_prologue(interp, objc, objv, 2, 3, NULL, "handle ?-numeric?") == 0)
     return TCL_ERROR;
 
-  if ((numeric = (strcmp (argv[1], "-numeric") == 0)) && argc < 3)
-    return mysql_prim_confl ("handle required") ;
+  if (objc==3) {
+    if (strcmp (Tcl_GetString(objv[2]), "-numeric"))
+      return mysql_prim_confl (interp,objc,objv,"last parameter should be -numeric") ;
+    else
+      numeric=1;
+  }
   
-  hp = (numeric)?argv[2]:argv[1] ;
-
-  if (HSYNTAX(hp,hi) < 0)
-    res = (numeric)?"0":"NOT_A_HANDLE" ;
-  else if (MysqlHandle[hi].connection == 0)
-    res = (numeric)?"1":"UNCONNECTED" ;
-  else if (MysqlHandle[hi].database[0] == '\0')
-    res = (numeric)?"2":"CONNECTED" ;
-  else if (MysqlHandle[hi].result == NULL)
-    res = (numeric)?"3":"IN_USE" ;
+  if (GetHandleFromObj(NULL, objv[1], &handle) != TCL_OK)
+    res = (numeric)?Tcl_NewIntObj(0):Tcl_NewStringObj("NOT_A_HANDLE",-1) ;
+  else if (handle->connection == 0)
+    res = (numeric)?Tcl_NewIntObj(1):Tcl_NewStringObj("UNCONNECTED",-1) ;
+  else if (handle->database[0] == '\0')
+    res = (numeric)?Tcl_NewIntObj(2):Tcl_NewStringObj("CONNECTED",-1) ;
+  else if (handle->result == NULL)
+    res = (numeric)?Tcl_NewIntObj(3):Tcl_NewStringObj("IN_USE",-1) ;
   else
-    res = (numeric)?"4":"RESULT_PENDING" ;
+    res = (numeric)?Tcl_NewIntObj(4):Tcl_NewStringObj("RESULT_PENDING",-1) ;
 
-  (void)strcpy (interp->result, res) ;
+  Tcl_SetObjResult(interp, res);
   return TCL_OK ;
 }
 
@@ -1536,23 +1501,15 @@ Mysqltcl_State (clientData, interp, argc, argv)
  *	                
  */
 
-Mysqltcl_InsertId (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_InsertId)
 {
-  int hand;
-  char* res ;
-  MYSQL* mysql;
+  MysqlTclHandle *handle;
   
-  if ((hand = mysql_prologue(interp, argc, argv, 2, get_handle_conn,
-			    "handle")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 2, 2, CL_CONN,
+			    "handle")) == 0)
     return TCL_ERROR;
 
-  mysql = MysqlHandle[hand].mysql;
-
-  (void)sprintf (interp->result, "%d", mysql_insert_id(mysql)) ;
+  Tcl_SetObjResult(interp, Tcl_NewIntObj(mysql_insert_id(handle->connection)));
 
   return TCL_OK;
 }
@@ -1569,36 +1526,38 @@ Mysqltcl_InsertId (clientData, interp, argc, argv)
  *	null string
  */
 
-Mysqltcl_Close (clientData, interp, argc, argv)
-     ClientData   clientData;
-     Tcl_Interp  *interp;
-     int          argc;
-     char       **argv;
+DEFINE_CMD(Mysqltcl_Close)
 {
-  int     hand;
-  
+  MysqlTclHandle *handle;
+  Tcl_HashEntry *entryPtr;
+
   /* If handle omitted, close all connections. */
-  if (argc == 1)
+  if (objc == 1)
     {
       Mysqltcl_Kill ((ClientData)NULL) ;
       return TCL_OK ;
     }
   
-  if ((hand = mysql_prologue(interp, argc, argv, 2, get_handle_conn,
-			    "handle")) < 0)
+  if ((handle = mysql_prologue(interp, objc, objv, 2, 2, CL_CONN,
+			    "?handle?")) == 0)
     return TCL_ERROR;
 
-  mysql_close (MysqlHandle[hand].connection) ;
+  mysql_close (handle->connection) ;
 
-  MysqlHandle[hand].connection = (MYSQL *)0 ;
-  MysqlHandle[hand].host[0] = '\0' ;
-  MysqlHandle[hand].database[0] = '\0' ;
+  handle->connection = (MYSQL *)0 ;
+  handle->host[0] = '\0' ;
+  handle->database[0] = '\0' ;
 
-  if (MysqlHandle[hand].result != NULL)
-    mysql_free_result (MysqlHandle[hand].result) ;
+  if (handle->result != NULL)
+    mysql_free_result (handle->result) ;
     
-  MysqlHandle[hand].result = NULL ;
-  MysqlHandle[hand].res_count = 0 ;
+  handle->result = NULL ;
+  handle->res_count = 0 ;
+
+  entryPtr = Tcl_FindHashEntry(&handleTable,Tcl_GetStringFromObj(objv[1],NULL));
+  if (entryPtr) {
+     Tcl_DeleteHashEntry(entryPtr);
+  } 
 
   return TCL_OK;
 }

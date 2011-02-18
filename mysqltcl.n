@@ -50,23 +50,43 @@ mysqlcol. Everything else should work as before. The new versions are described 
 .sp
 .SH "MYSQLTCL COMMANDS"
 .TP
-.B mysqlconnect \fI[-user user [-password password]] ?hostname?\fR
+.B mysqlconnect \fI?option value ...?\fR
 .br
-Connect to an mysql server.
-The connection will be done in the name of \fIuser\fR using \fIpassword\fR
-to login. 
-If \fIhostname\fR is specified, then an attempt will be made to connect
-to a server located on this host.
-\fIHostname\fR may be the name or the IP address of the desired host.
-If \fIhostname\fR is omitted the connection is attempted on the local host.
-.sp
+Connect to a mysql server.
 A handle is returned which should be used in all other mysqltcl
 commands using this connection.
-Multiple connections to the same or different servers are allowed, up
-to a maximum of 15 total connections.
-(This limit is a compilation constant.)
 mysqlconnect raises a Tcl error if the connection fails.
-.sp
+Possible connection options are:
+.RS
+.TP
+.B -host \fIhostname
+.br
+The host on which the server is located. The local host is used by default.
+.TP
+.B -user \fIuser
+.br
+The user whose name is used for the connection.
+The current Unix username is used by default.
+.TP
+.B -password \fIpassword
+.br
+The password that must be used for the connection.
+If it is not present, the connection is possible only for users with
+no password on the server.
+.TP
+.B -db \fIdb
+.br
+If this option is present, \fIdb\fR is used as current database, with no need
+for a call to \fBmysqluse\fR.
+.TP
+.B -port \fIport
+.br
+The port number for the TCP/IP connection, if it's different from the default.
+.TP
+.B -socket \fIsocket
+.br
+The socket or named pipe for the connection.
+.RE
 .TP
 .B mysqluse \fIhandle dbname\fR
 .br
@@ -78,28 +98,64 @@ Mysqluse raises a Tcl error if the handle is not connected or
 if the database name specified could not be used.
 .sp
 .TP
-.B mysqlsel \fIhandle sql-statement\fR
+.B mysqlsel \fIhandle sql-statement ?-list|-flatlist?\fR
 .br
 Send \fIsql-statement\fR to the server.
 The \fIhandle\fR must be in use (through mysqlconnect and mysqluse).
 .sp
-If \fIsql-statement\fR is a SELECT statement the command returns the
+If \fIsql-statement\fR is a SELECT statement and no \fI-list\fR or
+\fI-flatlist\fR option is specified, the command returns the
 number of rows returned as the result of the query.
 The rows can be obtained by the \fImysqlnext\fR and/or the
 \fImysqlmap\fR commands.
 The resulting rows are called the \fIpending result\fR.
 .sp
+If \fIsql-statement\fR is a SELECT statement and \fI-list\fR or \fI-flatlist\fR
+is specified, the command returns the full list of rows returned as 
+the result of the query in one of two possible formats:
+.IP [1]
+\fI-list\fR generates a list of lists, in which each element is a row of the
+result.
+.IP [2]
+\fI-flatlist\fR generates the concatenation of all rows in a single list, which 
+is useful for scanning with a single \fBforeach\fR.
+.sp
+An example is in order:\fB
+.br
+	% mysqlsel $db "SELECT ID, NAME FROM FRIENDS" -list
+.br
+	{1 Joe} {2 Phil} {3 John}
+.br
+	% mysqlsel $db "SELECT ID, NAME FROM FRIENDS" -flatlist
+.br
+	{1 Joe 2 Phil 3 John}
+.sp
+\fR
+Note that both list syntaxes are faster than something like\fB
+.br
+    % mysqlsel $db "SELECT ID, NAME FROM FRIENDS"
+.br
+    3
+.br
+    % mysqlmap $db {id name} {lappend result $id $name}
+.br
+    % puts $result
+.br
+	{1 Joe 2 Phil 3 John}
+.sp
+\fR
 If \fIsql-statement\fR is a valid mysql statement, but not a SELECT
-statement, the command returns -1 after executing the statement.
+statement, the command returns -1 after executing the statement, or an empty 
+string if \fI-list\fR or \fI-flatlist\fR is specified.
 There is no pending result in this case.
 .sp
-In either case mysqlsel implicitly cancels any previous result still
+In any case mysqlsel implicitly cancels any previous result still
 pending for the handle.
 .sp
 .TP
 .B mysqlexec \fIhandle sql-statement\fR
 .br
-Send \fIsql-statement\fR, an mysql non-SELECT statement, to the server.
+Send \fIsql-statement\fR, a mysql non-SELECT statement, to the server.
 The \fIhandle\fR must be in use (through mysqlconnect and mysqluse).
 .sp
 Mysqlexec implicitly cancels any previous result pending for the handle.
@@ -159,7 +215,7 @@ Tcl commands.
 The binding list variables retain their last values after the command
 has completed.
 .sp
-An simple example follows.
+A simple example follows.
 Assume $db is a handle in use.\fB
 .sp
 	mysqlsel $db {select lname, fname, area, phone from friends
@@ -337,7 +393,7 @@ The handle must be in use.
 .B mysqlresult \fIhandle option\fR
 .br
 Return information about the pending result.
-Note that a result is pending until cancelled by an mysqlexec command,
+Note that a result is pending until cancelled by a mysqlexec command,
 even if no rows remain to be read.
 \fIOption\fR must be one of the following keywords.
 .RS
@@ -380,7 +436,7 @@ Note that
 always equals the total number of rows in the pending result.
 .RE
 .TP 
-.B mysqlstate \fI?-numeric? handle\fR
+.B mysqlstate \fIhandle ?-numeric?\fR
 .br
 Return the state of a handle as a string or in numeric form.
 There is no requirement on \fIhandle\fR; it may be any string.
@@ -391,7 +447,7 @@ The states form a progression where each state builds on the previous.
 .TP
 .B NOT_A_HANDLE (0)
 .br
-The string supplied for \fIhandle\fR is not an mysqltcl handle at all.
+The string supplied for \fIhandle\fR is not a mysqltcl handle at all.
 .TP
 .B UNCONNECTED (1)
 .br
@@ -423,6 +479,18 @@ Returns an empty string.
 Mysqlclose raises a Tcl error if a handle is specified which is not
 connected.
 .sp
+.TP 
+.B mysqlinsertid \fIhandle\fR
+.br
+Returns the auto increment id of the last INSERT statement.
+.sp
+.TP 
+.B mysqlescape \fIstring\fR
+.br
+Returns the content of \fIstring\fR, with all special characters escaped,
+so that it is suitable for use in an SQL statement. This is simpler (faster?)
+than using a general \fBregexp\fR.
+.sp
 .SH "STATUS INFORMATION"
 .P
 Mysqltcl creates and maintains a Tcl global array to provide status
@@ -437,10 +505,10 @@ A numeric conflict code set after every mysqltcl command.
 Zero means no conflict; non-zero means some kind of conflict.
 All conflicts also generate a Tcl error.
 .sp
-Almost all conflicts set mysqlstatus(code) to -1.
-The only exception is when a Unix system call in mysqltcl fails.
-Then the Unix \fIerrno\fR (a positive integer) is assigned to
-mysqlstatus(code).
+All mysql server conflicts set mysqlstatus(code) to the numeric
+code of the mysql error.
+.br
+Any other conflict sets mysqlstatus(code) to -1.
 .TP
 .B command
 .br
@@ -468,18 +536,19 @@ None.
 .P
 Sure.
 .P
-The mysqltcl commands silently ignore any extraneous arguments.
 Some of the options of the information commands (mysqlinfo, mysqlresult,
 mysqlcol, mysqlstate) keep returning results even if the mysql server has
 ceased to exist.
 .P
 Deleting any of the mysqltcl commands closes all connections.
-.P
-mysqlcol on a non-existent table returns an empty string without
-causing an error. This is an msql bug.
 .sp
-.SH AUTHOR
-Tobias Ritzau (tobri$ida.liu.se)
+.SH AUTHORS
+Tobias Ritzau (tobri@ida.liu.se)
+.br
+Paolo Brutti (Paolo.Brutti@tlsoft.it)
+.br
+Artur Trzewik (mail@xdobry.de)
+.br
 MySQLTcl is derived from a patch of msql by Hakan Soderstrom (hs@soderstrom.se), Soderstrom Programvaruverkstad,
 S-12242 Enskede, Sweden.
 msql is derived from Sybtcl by Tom Poindexter (tpoindex@nyx.cs.du.edu).
