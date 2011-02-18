@@ -1,0 +1,57 @@
+Some information about mysqltcl
+Mysqltcl was implemented to provide access to original C-API functions from
+libclientmysql library, which is part of mysql distribution.
+http://dev.mysql.com/doc/refman/5.0/en/c-api-functions.html
+Mysqltcl reflects this C-API.
+
+I wanted that it is so useful and complete as you use C programming language directly.
+
+Anyway mysql C-api is also someway specific.
+For example it provides are movable cursor.
+Mysql API was designed to fit GUI clients in easy way.
+Other DBs have not such functionality.
+
+>     - resistance to SQL insertion attacks has to be designed
+>       in and can be helped by integrating the SQL query
+>       tightly to the Tcl layer.  SQLite does quite a good
+>       job of this.  TclODBC has a more awkward interface,
+>       but at least gets the job done with prepared statements.
+>      Mysqltclfalls out of bed; the idea of providing
+>       a separate "magic quoting" operation to scrub
+>       text for insertion into a query is a non-starter.
+> 
+
+mysqltcl provide only interface to C-API quoting function
+http://dev.mysql.com/doc/refman/5.0/en/mysql-real-escape-string.html
+I think that it is the best solution to use original functions from official API.
+
+>     - proper handling of NULLs is essential.  This idea has
+>       a natural tension against Tcl; in Tcl, "everything is
+>       a string," but the NULL value is not any string.
+>       This has been a problem in the past; TIP 185 proposes
+>       one solution (ill-advised in my personal opinion).
+>       I'm convinced that using dictionaries to represent
+>       rows in result sets is a far better approach.  I'll
+>       post more on this in a separate discussion, probably
+>       in the next few days.
+
+In mysqltcl I have implemented new internal type for null value and
+2 methods to handle it: mysql::isnull and mysql::newnull
+
+I think also that sqlite way to handle SQL do not fit for all DBs.
+Indeed sqlite provide their own sql-dialect, which is brilliant mix of Tcl and SQL.
+It can do it because the client-API parses SQL and so it can substitute variables.
+Sqlite was designed regarding the needs of Tcl and it is not distributed.
+For mysql the SQL parsing is done on server side. There is not so possibility.
+Anyway if someone want to use it, he should use [subst] and do it with Tcl on his
+responsibility.
+
+In my opinion the best solution for this is to have multi layer architecture.
+So it is a problem of next layer to provide standardized way to handle data access.
+There are some example wrappers for it.
+
+It is quite naive to design standard API for Tcl-DBI withoud rigarding all DB's API, which one want to provide.
+There are so many small differences.
+I do not suppose that some DB producer would consider needs of Tcl.
+
+Artur

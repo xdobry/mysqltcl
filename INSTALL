@@ -1,0 +1,43 @@
+# Requirements
+you need mysql at least 3.22
+and tcl at least 8.1
+for Tcl8.0 download old mysqltcl-2.0rc6
+
+>./configure
+>make
+>make install
+
+Configure option --with-tcl=dir
+set include path to dir/include
+
+To compile mysqltcl you need tcl header files.
+(tcl.h tclInt.h)
+By Suse these files are not a part of tcl package (tcl.rpm)
+but are moved to tcl devel package (tcld.rpm)
+Suse Personal Edition does not contain tcld.rpm.
+So you must download it per ftp first if you are
+not owner of Suse Profesional Edition.
+
+RedHat usere do not have this problem.
+
+Using mysqltcl from tcl
+
+load path_to_lib/libmysqltcl.so
+
+see test.tcl for example
+
+The configure script search for tclsh
+Some distribution have only tclsh8.0 or tclsh8.3
+so you must preapre a symbolic link from your tclsh8.? to tclsh
+as root
+
+cd /usr/bin
+ln -s tclsh8.? tclsh
+
+If the configure script fail
+you can use Makefile.org file 
+Probably you must edit the file first
+Try
+
+cp config.org config.h
+make -f Makefile.org

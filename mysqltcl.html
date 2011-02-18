@@ -1,0 +1,779 @@
+<HTML><HEAD><TITLE>Manpage of MySQLTcl</TITLE>
+</HEAD><BODY>
+<a href="http://www.xdobry.de/mysqltcl/index.html">Mysqltcl hompage on www.xdobry.de/mysqltcl</a>
+<hr>
+<H1>MySQLTcl</H1>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+MySQLTcl - MySQL server access commands for Tcl
+<A NAME="lbAC">&nbsp;</A>
+<H2>INTRODUCTION</H2>
+
+
+MySQLTcl is a collection of Tcl commands and a Tcl global array that
+provide access to one or more mysql database servers.
+
+MySQLTcl is nothing more than a patched version of a patched version
+of Hakan Soderstrom's patch of Tom Poindexter's Sybtcl. Most of the
+documentention has been left as it was when I started to work with
+this interface (a patch of msqltcl-1.50). However, I have tried to 
+replace appropriate occurrences of msql by MySQL.
+
+I have changed the semantics of two commands: mysqlconnect and
+mysqlcol. Everything else should work as before. The new versions are described below.
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>MYSQLTCL COMMANDS</H2>
+
+<DL COMPACT>
+<DT><B>mysqlconnect </B><I>?option value ...?</I>
+
+<DD>
+<BR>
+
+Connect to a mysql server.
+A handle is returned which should be used in all other mysqltcl
+commands using this connection.
+mysqlconnect raises a Tcl error if the connection fails.
+mysqlconnect read first the options from my.cnf file group mysqltcl.
+See mysql documentation chapter &quot;options files&quot;.
+Possible connection options are:
+<DL COMPACT><DT><DD>
+<DL COMPACT>
+<DT><B>-host </B><I>hostname</I>
+
+<DD>
+<BR>
+
+The host on which the server is located. The local host is used by default.
+<DT><B>-user </B><I>user</I>
+
+<DD>
+<BR>
+
+The user whose name is used for the connection.
+The current Unix username is used by default.
+<DT><B>-password </B><I>password</I>
+
+<DD>
+<BR>
+
+The password that must be used for the connection.
+If it is not present, the connection is possible only for users with
+no password on the server.
+<DT><B>-db </B><I>db</I>
+
+<DD>
+<BR>
+
+If this option is present, <I>db</I> is used as current database, with no need
+for a call to <B>mysqluse</B>.
+<DT><B>-port </B><I>port</I>
+
+<DD>
+<BR>
+
+The port number for the TCP/IP connection, if it's different from the default.
+<DT><B>-socket </B><I>socket</I>
+
+<DD>
+<BR>
+
+The socket or named pipe for the connection.
+</DL>
+</DL>
+
+<DT><B>mysqluse </B><I>handle dbname</I>
+
+<DD>
+<BR>
+
+Associate a connected handle with a particular database.
+If successful the handle is said to be <I>in use</I>.
+<I>Handle</I> must be a valid handle previously obtained from mysqlconnect.
+<P>
+Mysqluse raises a Tcl error if the handle is not connected or
+if the database name specified could not be used.
+<P>
+<DT><B>mysqlsel </B><I>handle sql-statement ?-list|-flatlist?</I>
+
+<DD>
+<BR>
+
+Send <I>sql-statement</I> to the server.
+The <I>handle</I> must be in use (through mysqlconnect and mysqluse).
+<P>
+If <I>sql-statement</I> is a SELECT statement and no <I>-list</I> or
+<I>-flatlist</I> option is specified, the command returns the
+number of rows returned as the result of the query.
+The rows can be obtained by the <I>mysqlnext</I> and/or the
+<I>mysqlmap</I> commands.
+The resulting rows are called the <I>pending result</I>.
+<P>
+If <I>sql-statement</I> is a SELECT statement and <I>-list</I> or <I>-flatlist</I>
+is specified, the command returns the full list of rows returned as 
+the result of the query in one of two possible formats:
+<DT>[1]<DD>
+<I>-list</I> generates a list of lists, in which each element is a row of the
+result.
+<DT>[2]<DD>
+<I>-flatlist</I> generates the concatenation of all rows in a single list, which 
+is useful for scanning with a single <B>foreach</B>.
+<P>
+An example is in order:<B>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>% mysqlsel $db &quot;SELECT ID, NAME FROM FRIENDS&quot; -list<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>{1 Joe} {2 Phil} {3 John}<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>% mysqlsel $db &quot;SELECT ID, NAME FROM FRIENDS&quot; -flatlist<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>{1 Joe 2 Phil 3 John}<BR>
+<P>
+</B>
+Note that both list syntaxes are faster than something like<B>
+<BR>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;mysqlsel&nbsp;$db&nbsp;&quot;SELECT&nbsp;ID,&nbsp;NAME&nbsp;FROM&nbsp;FRIENDS&quot;
+<BR>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;3
+<BR>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;mysqlmap&nbsp;$db&nbsp;{id&nbsp;name}&nbsp;{lappend&nbsp;result&nbsp;$id&nbsp;$name}
+<BR>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;puts&nbsp;$result
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>{1 Joe 2 Phil 3 John}<BR>
+<P>
+</B>
+If <I>sql-statement</I> is a valid mysql statement, but not a SELECT
+statement, the command returns -1 after executing the statement, or an empty 
+string if <I>-list</I> or <I>-flatlist</I> is specified.
+There is no pending result in this case.
+<P>
+In any case mysqlsel implicitly cancels any previous result still
+pending for the handle.
+<P>
+<DT><B>mysqlexec </B><I>handle sql-statement</I>
+
+<DD>
+<BR>
+
+Send <I>sql-statement</I>, a mysql non-SELECT statement, to the server.
+The <I>handle</I> must be in use (through mysqlconnect and mysqluse).
+<P>
+Mysqlexec implicitly cancels any previous result pending for the handle.
+<P>
+If <I>sql-statement</I> is a valid mysql SELECT statement, the statement
+is executed, but the result is discarded.
+No Tcl error is generated.
+This amounts to a (potentially costly) no-op.
+Use the mysqlsel command for SELECT statements.
+<P>
+mysqlexec return the number of affected rows (DELETE, UPDATE)
+<P>
+<DT><B>mysqlquery </B><I>handle sql-select-statement</I>
+
+<DD>
+<BR>
+
+Send <I>sql-select-statement</I> to the server. New command in 2.1 version.
+<P>
+<P>
+<I>mysqlquery</I> allow to send multiple nested queries on one handle (without need to build
+new handle or caching results).
+mysqlquery return a query handle that can be used as handle in commands as (mysqlnext,
+mysqlmap, mysqlseek, mysqlcol, mysqlresult).
+After result proceeding all query must be
+freed with <I>mysqlendquery query-hanlde</I> command.
+<P>
+<P>
+An example is in order:<B>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>set query1 [mysqlquery $db {SELECT ID, NAME FROM FRIENDS}]<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>while {[set row [mysqlnext $query1]]!=&quot;&quot;} {<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>set id [lindex $row 0]<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>set query2 [mysqlquery $db &quot;SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID&quot;]<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>mysqlmap $query2 address { puts &quot;address = $address }<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>mysqlendquery $query2<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>}<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>mysqlendquery $query1<BR>
+<P>
+<DT>mysqlendquery </B><I>query-handle</I>
+
+<DD>
+<BR>
+
+free result memory after <I>mysqlquery</I> command. New command in 2.1 version.
+You must invoke mysqlendquery after each mysqlquery to not cause memory leaks. See mysqlquery command.
+<P>
+Using <I>mysqlendquery</I> on db-handle will free also memory after <I>mysqlsel</I> command.
+<P>
+<DT><B>mysqlnext </B><I>handle</I>
+
+<DD>
+<P>
+(note: In most cases one should use sql-joins and avoid nested queries.
+SQL-sever can optimize such queries.
+But in some applications (GUI-Forms) where the results are used long time the inner
+query is not known before)
+<P>
+Mysqlnext raises a Tcl error if there is no pending result for <I>handle</I>.
+<P>
+<DT><B>mysqlmap </B><I>handle binding-list script</I>
+
+<DD>
+<BR>
+
+Iterate a script over the rows of the pending result.
+Mysqlmap may consume all rows or only some of the rows of the pending
+result.
+Any remaining rows may be obtained by further mysqlnext or mysqlmap
+commands.
+<P>
+<I>Handle</I> must be a handle with a pending result from a previous
+mysqlsel command.
+<I>Binding-list</I> must be a list of one or more variable names.
+<I>Script</I> must be a Tcl script.
+It may be empty, but usually it contains one or more commands.
+<P>
+Mysqlmap processes one row at a time from the pending result.
+For each row the column values are bound to the variables in the
+binding list, then the script is executed.
+Binding is strictly positional.
+The first variable in the binding list is bound to the first column of
+the row, and so on.
+The variables are created in the current context (if they do not
+already exist).
+A variable name beginning with a hyphen is not bound; it serves as a
+placeholder in the binding list.
+If there are more columns than variables the extra columns are
+ignored.
+<P>
+The mysqlmap command is similar to an ordinary <B>foreach</B>.
+A <B>foreach</B> iterates over the elements of a list, mysqlmap
+iterates over the rows of a pending result.
+In both cases iteration is affected by <B>break</B> and <B>continue</B>
+Tcl commands.
+The binding list variables retain their last values after the command
+has completed.
+<P>
+A simple example follows.
+Assume $db is a handle in use.<B>
+<P>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>mysqlsel $db {select lname, fname, area, phone from friends<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>order by lname, fname}<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>mysqlmap $db {ln fn - phone} {<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>if {$phone == {}} continue<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>puts [format &quot;%16s %-8s %s&quot; $ln $fn $phone]<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>}</B><BR>
+<BR>
+
+<P>
+The mysqlsel command gets and sorts all rows from table <I>friends</I>.
+The mysqlmap command is used to format and print the result in a way
+suitable for a phone list.
+For demonstration purposes one of the columns (area) is not used.
+The script begins by skipping over rows which have no phone number.
+The second command in the script formats and prints values from the row.
+<P>
+Mysqlmap raises a Tcl error if there is no pending result for
+<I>handle</I>, or if <I>binding-list</I> contains more variables than
+there are columns in the pending result.
+<P>
+<DT><B>mysqlseek </B><I>handle row-index</I>
+
+<DD>
+<BR>
+
+Moves the current position among the rows in the pending result.
+This may cause <I>mysqlnext</I> and <I>mysqlmap</I> to re-read rows, or to
+skip over rows.
+<P>
+Row index 0 is the position just before the first row in the pending result;
+row index 1 is the position just before the second row, and so
+on.
+You may specify a negative row index.
+Row index -1 is the position just before the last row;
+row index -2 is the position just before the second last row,
+and so on.
+An out-of-bounds row index will cause mysqlseek to set the new current
+position either just before the first row (if the index is too negative),
+or just after the last row (if the index exceeds the number of rows).
+This is not an error condition.
+<P>
+Mysqlseek returns the number of rows that can be read sequentially from
+the new current position.
+Mysqlseek raises a Tcl error if there is no pending result for <I>handle</I>.
+<P>
+Portability note: The functionality of <I>mysqlseek</I> is frequently
+absent in other Tcl extensions for SQL.
+<P>
+<DT><B>mysqlcol </B><I>handle table-name option</I>
+
+<DD>
+<DT><B>mysqlcol </B><I>handle table-name option-list</I>
+
+<DD>
+<DT><B>mysqlcol </B><I>handle table-name option ?option ...?</I>
+
+<DD>
+<BR>
+
+Return information about the columns of a table.
+<I>Handle</I> must be in use.
+<I>Table-name</I> must be the name of a table; it may be a table name
+or <B>-current</B> if there is a pending result.
+One or more options control what information to return.
+Each option must be one of the following keywords.
+<DL COMPACT><DT><DD>
+<DL COMPACT>
+<DT><B>name</B>
+
+<DD>
+<BR>
+
+Return the name of a column.
+<DT><B>type</B>
+
+<DD>
+<BR>
+
+Return the type of a column; one of the strings <B>decimal</B>,
+<B>tiny</B>, <B>short</B>, <B>long</B>, <B>float</B>, <B>double</B>,
+<B>null</B>, <B>timestamp</B>, <B>long long</B>, <B>int24</B>, <B>date</B>,
+<B>time</B>, <B>date time</B>, <B>year</B>, <B>new date</B>, <B>enum</B>,
+<B>set</B>, <B>tiny blob</B>, <B>medium blob</B>, <B>long blob</B>,
+<B>blob</B>, <B>var string</B>, or <B>string</B>.
+Note that a column of type <B>char</B> will return tiny, while they are 
+represented equally.
+<DT><B>length</B>
+
+<DD>
+<BR>
+
+Return the length of a column in bytes.
+<DT><B>table</B>
+
+<DD>
+<BR>
+
+Return the name of the table in which this column occurs.
+<DT><B>non_null</B>
+
+<DD>
+<BR>
+
+Return the string ``1'' if the column is non-null; otherwise ``0''.
+<DT><B>prim_key</B>
+
+<DD>
+<BR>
+
+Return the string ``1'' if the column is part of the primary key;
+otherwise ``0''.
+<DT><B>numeric</B>
+
+<DD>
+<BR>
+
+Return the string ``1'' if the column is numeric; otherwise ``0''.
+<DT><B>decimals</B>
+
+<DD>
+<BR>
+
+Return the string ``1'' if the column is non-null; otherwise ``0''.
+</DL>
+</DL>
+
+<P>
+The three forms of this command generate their result in a
+particular way.
+<DT>[1]<DD>
+If a single option is present the result is a simple list of
+values; one for each column.
+<DT>[2]<DD>
+If the options are given in the form of an option list the
+result is a list of lists.
+Each sublist corresponds to a column and contains the information
+specified by the options.
+<DT>[3]<DD>
+If several options are given, but not in a list, the result is also
+a list of lists.
+In this case each sublist corresponds to an option and contains one
+value for each column.
+<P>
+The following is a sample interactive session containing all forms of
+the mysqlcol command and their results.
+The last command uses the <B>-current</B> option.
+It could alternatively specify the table name explicitly.<B>
+<P>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>% mysqlcol $db friends name<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>fname lname area phone<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>% mysqlcol $db friends {name type length}<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>{fname char 12} {lname char 20} {area char 5} {phone char 12}<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>% mysqlsel $db {select * from friends}<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>% mysqlcol $db -current name type length<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>{fname lname area phone} {char char char char} {12 20 5 12}</B><BR>
+<P>
+<DT><B>mysqlinfo </B><I>handle option</I>
+
+<DD>
+<BR>
+
+Return various database information depending on the <I>option</I>.
+The option must be one of the following keywords.
+<DL COMPACT><DT><DD>
+<DL COMPACT>
+<DT><B>info</B>
+
+<DD>
+<BR>
+
+Return a String with information about last operation.
+&quot;Records: 3 Duplicates: 0 Warnings: 0&quot; by INSERT or 
+&quot;Rows matched: 40 Changed: 40 Warnings: 0&quot; by UPDATE statements
+(read the manual for mysql_info in mysql C API documentation) 
+<DT><B>databases</B>
+
+<DD>
+<BR>
+
+Return a list of all database names known to the server.
+The handle must be connected.
+<DT><B>dbname</B>
+
+<DD>
+<BR>
+
+Return the name of the database with which the handle is associated.
+The handle must be in use.
+<DT><B>dbname?</B>
+
+<DD>
+<BR>
+
+Return the name of the database with which the handle is associated;
+an empty string if the handle is connected, but not in use.
+<DT><B>host</B>
+
+<DD>
+<BR>
+
+Return the name of the host to which the handle is connected.
+The handle must be connected.
+<DT><B>host?</B>
+
+<DD>
+<BR>
+
+Return the name of the host to which the handle is connected; an empty
+string if the handle is not connected.
+<DT><B>tables</B>
+
+<DD>
+<BR>
+
+Return a list of all table names in the database with which the handle
+is associated.
+The handle must be in use.
+</DL>
+</DL>
+
+<DT><B>mysqlresult </B><I>handle option</I>
+
+<DD>
+<BR>
+
+Return information about the pending result.
+Note that a result is pending until canceled by a mysqlexec command,
+even if no rows remain to be read.
+<I>Option</I> must be one of the following keywords.
+<DL COMPACT><DT><DD>
+<DL COMPACT>
+<DT><B>cols</B>
+
+<DD>
+<BR>
+
+Return the number of columns in the pending result.
+There must be a pending result.
+<DT><B>cols?</B>
+
+<DD>
+<BR>
+
+Return the number of columns in the pending result; an empty string if
+no result is pending.
+<DT><B>current</B>
+
+<DD>
+<BR>
+
+Return the current position in the pending result; a non-negative integer.
+This value can be used as <I>row-index</I> in the mysqlseek command.
+An error is raised if there is no pending result.
+<DT><B>current?</B>
+
+<DD>
+<BR>
+
+As above, but returns an empty string if there is no pending result.
+<DT><B>rows</B>
+
+<DD>
+<BR>
+
+Return the number of rows that can be read sequentially from the
+current position in the pending result.
+There must be a pending result.
+<DT><B>rows?</B>
+
+<DD>
+<BR>
+
+Return the number of rows that can be read sequentially from the
+current position in the pending result; an empty string if no result
+is pending.
+<P>
+<DT>*<DD>
+Note that
+<B>[mysqlresult $db current] + [mysqlresult $db rows]</B>
+
+always equals the total number of rows in the pending result.
+</DL>
+</DL>
+
+<DT><B>mysqlstate </B><I>handle ?-numeric?</I>
+
+<DD>
+<BR>
+
+Return the state of a handle as a string or in numeric form.
+There is no requirement on <I>handle</I>; it may be any string.
+The return value is one of the following strings, or the corresponding
+numeric value if <B>-numeric</B> is specified.
+The states form a progression where each state builds on the previous.
+<DL COMPACT><DT><DD>
+<DL COMPACT>
+<DT><B>NOT_A_HANDLE (0)</B>
+
+<DD>
+<BR>
+
+The string supplied for <I>handle</I> is not a mysqltcl handle at all.
+<DT><B>UNCONNECTED (1)</B>
+
+<DD>
+<BR>
+
+The string supplied for <I>handle</I> is one of the possible mysqltcl
+handles, but it is not connected to any server.
+<DT><B>CONNECTED (2)</B>
+
+<DD>
+<BR>
+
+The handle is connected to a server, but not associated with a database.
+<DT><B>IN_USE (3)</B>
+
+<DD>
+<BR>
+
+The handle is connected and associated with a database, but there is
+no pending result.
+<DT><B>RESULT_PENDING (4)</B>
+
+<DD>
+<BR>
+
+The handle is connected, associated with a database, and there is a
+pending result.
+</DL>
+</DL>
+
+<P>
+<DT><B>mysqlclose </B><I>?handle?</I>
+
+<DD>
+<BR>
+
+Closes the server connection associated with <I>handle</I>, causing it
+to go back to the unconnected state.
+Closes all connections if <I>handle</I> is omitted.
+Returns an empty string.
+Mysqlclose raises a Tcl error if a handle is specified which is not
+connected.
+<P>
+<DT><B>mysqlinsertid </B><I>handle</I>
+
+<DD>
+<BR>
+
+Returns the auto increment id of the last INSERT statement.
+<P>
+<DT><B>mysqlescape </B><I>string</I>
+
+<DD>
+<BR>
+
+Returns the content of <I>string</I>, with all special characters escaped,
+so that it is suitable for use in an SQL statement. This is simpler (faster)
+than using a general <B>regexp</B>.
+<P>
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>STATUS INFORMATION</H2>
+
+
+Mysqltcl creates and maintains a Tcl global array to provide status
+information. 
+Its name is <B>mysqlstatus</B>.
+
+Mysqlstatus elements:
+<DL COMPACT>
+<DT><B>code</B>
+
+<DD>
+<BR>
+
+A numeric conflict code set after every mysqltcl command.
+Zero means no conflict; non-zero means some kind of conflict.
+All conflicts also generate a Tcl error.
+<P>
+All mysql server conflicts set mysqlstatus(code) to the numeric
+code of the mysql error.
+<BR>
+
+Any other conflict sets mysqlstatus(code) to -1.
+<DT><B>command</B>
+
+<DD>
+<BR>
+
+The last failing mysqltcl command.
+Not updated for successful commands.
+<DT><B>message</B>
+
+<DD>
+<BR>
+
+Message string for the last conflict detected.
+The same string is returned as the result of the failing mysqltcl
+command.
+Not updated for successful commands.
+<DT><B>nullvalue</B>
+
+<DD>
+<BR>
+
+The string to use in query results to represent the SQL null value.
+The empty string is used initially.
+You may set it to another value.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>ENVIRONMENT VARIABLES</H2>
+
+
+None.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>BUGS &amp; POSSIBLE MISFEATURES</H2>
+
+
+Sure.
+
+Some of the options of the information commands (mysqlinfo, mysqlresult,
+mysqlcol, mysqlstate) keep returning results even if the mysql server has
+ceased to exist.
+
+Deleting any of the mysqltcl commands closes all connections.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Tobias Ritzau (<A HREF="mailto:tobri@ida.liu.se">tobri@ida.liu.se</A>)
+<BR>
+
+Paolo Brutti (<A HREF="mailto:Paolo.Brutti@tlsoft.it">Paolo.Brutti@tlsoft.it</A>)
+<BR>
+
+Artur Trzewik (<A HREF="mailto:mail@xdobry.de">mail@xdobry.de</A>)
+<BR>
+
+MySQLTcl is derived from a patch of msql by Hakan Soderstrom (<A HREF="mailto:hs@soderstrom.se">hs@soderstrom.se</A>), Soderstrom Programvaruverkstad,
+S-12242 Enskede, Sweden.
+msql is derived from Sybtcl by Tom Poindexter (<A HREF="mailto:tpoindex@nyx.cs.du.edu">tpoindex@nyx.cs.du.edu</A>).
+<P>
+$Revision: 1.1.1.1 $
+<P>
+<P>
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT><A HREF="#lbAB">NAME</A><DD>
+<DT><A HREF="#lbAC">INTRODUCTION</A><DD>
+<DT><A HREF="#lbAD">MYSQLTCL COMMANDS</A><DD>
+<DT><A HREF="#lbAE">STATUS INFORMATION</A><DD>
+<DT><A HREF="#lbAF">ENVIRONMENT VARIABLES</A><DD>
+<DT><A HREF="#lbAG">BUGS &amp; POSSIBLE MISFEATURES</A><DD>
+<DT><A HREF="#lbAH">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 19:56:25 GMT, December 04, 2002
+</BODY>
+</HTML>

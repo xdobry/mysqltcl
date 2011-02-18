@@ -1,0 +1,40 @@
+Options
+
+MYSQL_OPT_READ_TIMEOUT
+MYSQL_OPT_WRITE_TIMEOUT
+MYSQL_SECURE_AUTH
+MYSQL_OPT_PROTOCOL
+MYSQL_INIT_COMMAND
+MYSQL_OPT_SSL_VERIFY_SERVER_CERT
+
+real_connect
+CLIENT_COMPRESS
+CLIENT_FOUND_ROWS
+CLIENT_IGNORE_SIGPIPE
+CLIENT_IGNORE_SPACE
+CLIENT_INTERACTIVE
+CLIENT_LOCAL_FILES
+CLIENT_MULTI_RESULTS
+CLIENT_MULTI_STATEMENTS
+CLIENT_NO_SCHEMA
+CLIENT_ODBC
+CLIENT_SSL
+CLIENT_REMEMBER_OPTIONS
+
+1. Alle Connect Optionen
+2. Dokumentation
+3. prepared Statement
+  - php analisieren
+  - Die tcldb analisieren
+  - schnittstelle designen
+4. Kode aufteilen
+
+Neue optionen
+"-reconnect","-read-timeout","-write-timeout"
+      "-connect-timeout","-protocol","-init-command","-ssl-verify-cert","-secure-auth
+      
+enum mysql_protocol_type 
+{
+  MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET,
+  MYSQL_PROTOCOL_PIPE, MYSQL_PROTOCOL_MEMORY
+};

@@ -1,0 +1,8 @@
+*~
+*.o
+*.so
+*.bak
+Makefile
+config.log
+config.status
+mysqltcl.h
