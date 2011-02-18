@@ -1313,7 +1313,7 @@ PACKAGE=mysqltcl
 
 MAJOR_VERSION=3
 MINOR_VERSION=0
-PATCHLEVEL=0
+PATCHLEVEL=1
 
 VERSION=${MAJOR_VERSION}.${MINOR_VERSION}${PATCHLEVEL}
 NODOT_VERSION=${MAJOR_VERSION}${MINOR_VERSION}
@@ -8222,14 +8222,14 @@ echo "$as_me:$LINENO: checking for libmysqlclient lib" >&5
 echo $ECHO_N "checking for libmysqlclient lib... $ECHO_C" >&6
 if test "$tcl_ok" = "yes"; then
    if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient.a ; then
-   	{ { echo "$as_me:$LINENO: error: Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use -with-mysql-lib=?" >&5
-echo "$as_me: error: Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use -with-mysql-lib=?" >&2;}
+   	{ { echo "$as_me:$LINENO: error: Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use --with-mysql-lib=?" >&5
+echo "$as_me: error: Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use --with-mysql-lib=?" >&2;}
    { (exit 1); exit 1; }; }
    fi
 else
    if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient${SHLIB_SUFFIX} ; then
-   	{ { echo "$as_me:$LINENO: error: Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use -with-mysql-lib=?" >&5
-echo "$as_me: error: Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use -with-mysql-lib=?" >&2;}
+   	{ { echo "$as_me:$LINENO: error: Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use --with-mysql-lib=?" >&5
+echo "$as_me: error: Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use --with-mysql-lib=?" >&2;}
    { (exit 1); exit 1; }; }
    fi
 fi

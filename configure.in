@@ -37,7 +37,7 @@ PACKAGE=mysqltcl
 
 MAJOR_VERSION=3
 MINOR_VERSION=0
-PATCHLEVEL=0
+PATCHLEVEL=1
 
 VERSION=${MAJOR_VERSION}.${MINOR_VERSION}${PATCHLEVEL}
 NODOT_VERSION=${MAJOR_VERSION}${MINOR_VERSION}
@@ -222,11 +222,11 @@ AC_MSG_RESULT([yes])
 AC_MSG_CHECKING([for libmysqlclient lib])
 if test "$tcl_ok" = "yes"; then
    if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient.a ; then
-   	AC_MSG_ERROR(Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use -with-mysql-lib=?)
+   	AC_MSG_ERROR(Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use --with-mysql-lib=?)
    fi
 else 
    if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient${SHLIB_SUFFIX} ; then
-   	AC_MSG_ERROR(Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use -with-mysql-lib=?)
+   	AC_MSG_ERROR(Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use --with-mysql-lib=?)
    fi
 fi
 AC_MSG_RESULT([yes])

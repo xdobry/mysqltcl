@@ -196,7 +196,8 @@ libraries:
 doc:
 	@echo "user manual doc is as nroff (man) file mysqltcl.n"
 
-install: all install-binaries install-libraries install-doc
+#install: all install-binaries install-libraries install-doc
+install: all install-binaries install-doc
 
 install-binaries: binaries install-lib-binaries install-bin-binaries
 	if test "x$(SHARED_BUILD)" = "x1"; then \
@@ -207,13 +208,14 @@ install-binaries: binaries install-lib-binaries install-bin-binaries
 # This rule installs platform-independent files, such as header files.
 #========================================================================
 
-install-libraries: libraries
-	@mkdir -p $(DESTDIR)$(includedir)
-	@echo "Installing header files in $(DESTDIR)$(includedir)"
-	@for i in $(GENERIC_HDRS) ; do \
-	    echo "Installing $$i" ; \
-	    $(INSTALL_DATA) $$i $(DESTDIR)$(includedir) ; \
-	done;
+# no headerfiles by mysqltcl
+#install-libraries: libraries
+#	@mkdir -p $(DESTDIR)$(includedir)
+#	@echo "Installing header files in $(DESTDIR)$(includedir)"
+#	@for i in $(GENERIC_HDRS) ; do \
+#	    echo "Installing $$i" ; \
+#	    $(INSTALL_DATA) $$i $(DESTDIR)$(includedir) ; \
+#	done;
 
 #========================================================================
 # Install documentation.  Unix manpages should go in the $(mandir)

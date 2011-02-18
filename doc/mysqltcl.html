@@ -65,6 +65,7 @@ package require <b>mysqltcl 3.0</b><br>
 <tr valign=top ><td ><a href="#30"><b class='cmd'>::mysql::newnull</b> </a></td></tr>
 <tr valign=top ><td ><a href="#31"><b class='cmd'>::mysql::setserveroption</b> <i class='arg'>handle</i> <i class='arg'>option</i></a></td></tr>
 <tr valign=top ><td ><a href="#32"><b class='cmd'>::mysql::shutdown</b> <i class='arg'>handle</i></a></td></tr>
+<tr valign=top ><td ><a href="#33"><b class='cmd'>::mysql::encoding</b> <i class='arg'>handle</i> ?encoding?</a></td></tr>
 </table></td></tr></table>
 <h2><a name="description">DESCRIPTION</a></h2>
 <p>
@@ -139,10 +140,6 @@ database and what encoding they expect. It can useful
 to use -encoding utf-8. That is standard encoding in some linux distributions and newer systems.
 
 <br><br>
-<dt><strong>-ssl</strong> <i class='arg'>boolean</i><dd>
-Switch to SSL after handshake. Default is  false
-
-<br><br>
 <dt><strong>-compress</strong> <i class='arg'>boolean</i><dd>
 Use compression protocol. Default is false
 
@@ -178,6 +175,35 @@ Default is false.
 Allow interactive_timeout seconds (instead of wait_timeout seconds) of inactivity before closing the connection.
 The client's session wait_timeout variable will be set to the value of the session interactive_timeout variable.
 Default is false.
+
+<br><br>
+<dt><strong>-ssl</strong> <i class='arg'>boolean</i><dd>
+Switch to SSL after handshake. Default is  false
+
+<br><br>
+<dt><strong>-sslkey</strong> <i class='arg'>string</i><dd>
+is the pathname to the key file. 
+Used if -ssl is true
+
+<br><br>
+<dt><strong>-sslcert</strong> <i class='arg'>string</i><dd>
+is the pathname to the certificate file.
+Used if -ssl is true
+
+<br><br>
+<dt><strong>-sslca</strong> <i class='arg'>string</i><dd>
+is the pathname to the certificate authority file. 
+Used if -ssl is true
+
+<br><br>
+<dt><strong>-sslcapath</strong> <i class='arg'>string</i><dd>
+is the pathname to a directory that contains trusted SSL CA certificates in pem format. 
+Used if -ssl is true
+
+<br><br>
+<dt><strong>-sslcipher</strong> <i class='arg'>string</i><dd>
+is a list of allowable ciphers to use for SSL encryption. 
+Used if -ssl is true
 
 </dl>
 
@@ -235,7 +261,7 @@ Example:
 {1 Joe 2 Phil 3 John}
 </pre></td></tr></table></p>
 
-Note that both list syntaxes are faster than something like\fB
+Note that both list syntaxes are faster than something like
 
 <p><table><tr><td bgcolor=black>&nbsp;</td><td><pre class='sample'>
 % ::mysql::sel $db &quot;SELECT ID, NAME FROM FRIENDS&quot;
@@ -293,12 +319,12 @@ freed with <em>::mysql::endquery query-hanlde</em> command.
 <br><br>
 Example:
 <p><table><tr><td bgcolor=black>&nbsp;</td><td><pre class='sample'>
-set query1 [::mysql::query \$db {SELECT ID, NAME FROM FRIENDS}\]
-while {[set row [::mysql::fetch \$query1]]!=&quot;&quot;} {
-    set id [lindex \$row 0]
-    set query2 [::mysql::query \$db &quot;SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID&quot;]
-    ::mysql::map \$query2 address { puts &quot;address = $address&quot; }
-    ::mysql::endquery \$query2
+set query1 [::mysql::query $db {SELECT ID, NAME FROM FRIENDS}\]
+while {[set row [::mysql::fetch $query1]]!=&quot;&quot;} {
+    set id [lindex $row 0]
+    set query2 [::mysql::query $db &quot;SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID&quot;]
+    ::mysql::map $query2 address { puts &quot;address = $address&quot; }
+    ::mysql::endquery $query2
 }
 ::mysql::endquery $query1
 </pre></td></tr></table></p>
@@ -356,17 +382,17 @@ The binding list variables retain their last values after the command
 has completed.
 <br><br>
 A simple example follows.
-Assume $db is a handle in use.\fB
+Assume $db is a handle in use.
 <p><table><tr><td bgcolor=black>&nbsp;</td><td><pre class='sample'>
-::mysql::sel \$db {
+::mysql::sel $db {
     select lname, fname, area, phone from friends order by lname, fname
 }
-::mysql::map \$db {ln fn - phone} {
-   if {\$phone == {}} continue
-   puts [format &quot;%16s %-8s %s&quot; \$ln \$fn \$phone]
+::mysql::map $db {ln fn - phone} {
+   if {$phone == {}} continue
+   puts [format &quot;%16s %-8s %s&quot; $ln $fn $phone]
 }
 </pre></td></tr></table></p>
-The ::mysql::sel command gets and sorts all rows from table \fIfriends].
+The ::mysql::sel command gets and sorts all rows from table friends.
 The ::mysql::map command is used to format and print the result in a way
 suitable for a phone list.
 For demonstration purposes one of the columns (area) is not used.
@@ -504,7 +530,7 @@ value for each column.
 The following is a sample interactive session containing all forms of
 the ::mysql::col command and their results.
 The last command uses the <em>-current</em> option.
-It could alternatively specify the table name explicitly.\fB
+It could alternatively specify the table name explicitly.
 <p><table><tr><td bgcolor=black>&nbsp;</td><td><pre class='sample'>
 %::mysql::col $db friends name
 name lname area phone
@@ -560,6 +586,29 @@ string if the handle is not valid.
 Return a list of all table names in the database with which the handle
 is associated.
 The handle must be in use.
+
+<br><br>
+<dt><strong>serverversion</strong><dd> 
+Returns the version number of the server as a string.
+
+<br><br>
+<dt><strong>serverversionid</strong><dd>
+Returns the version number of the server as an integer.
+
+<br><br>
+<dt><strong>sqlstate</strong><dd>
+Returns a string containing the SQLSTATE error code for the last error.
+The error code consists of five characters. '00000' means ``no error.''
+The values are specified by ANSI SQL and ODBC.
+
+Note that not all MySQL errors are yet mapped to SQLSTATE's.
+The value 'HY000' (general error) is used for unmapped errors. 
+
+<br><br>
+<dt><strong>state</strong><dd>
+Returns a character string containing information similar to that provided by the mysqladmin status command.
+This includes uptime in seconds and the number of running threads, questions, reloads, and open tables.
+
 </dl>
 
 <dt><a name="15"><b class='cmd'>::mysql::baseinfo</b> <i class='arg'>option</i></a><dd>
@@ -641,7 +690,7 @@ Return the number of rows that can be read sequentially from the
 current position in the pending result; an empty string if no result
 is pending.
 <br><br>
-[::mysql::result \$db current] + [::mysql::result \$db rows]
+[::mysql::result $db current] + [::mysql::result $db rows]
 always equals the total number of rows in the pending result.
 </dl>
 
@@ -740,22 +789,22 @@ Returns the number of warnings generated during execution of the previous SQL st
 <br><br>
 <dt><a name="29"><b class='cmd'>::mysql::isnull</b> <i class='arg'>value</i></a><dd>
 
-Null handling is known problem by Tcl to DB interfaces.
-Mysql varchar type known 2 valid values NULL and empty string.
-There is no way to difference it in core Tcl because of it strong string based
-philosophy.
+Null handling is a known problem with Tcl, especially with DB interaction.
+The mysql &quot;varchar&quot; type has two valid blank values, NULL and an empty
+string. This is where the problem arises; Tcl is not able to differentiate
+between the two because of the way it handles strings.
 Mysql has new internal Tcl type for null that string representation is stored
 in global array mysqltcl(nullvalue) and as default empty string.
 mysql::isnull can be used for safe check for null value.
 Warning mysql::isnull works only reliable if there are no type conversation on
 returned rows.
-Consider row is always Tcl list even when there are only on column in the row.
+Consider row is always Tcl list even when there are only one column in the row.
 <p><table><tr><td bgcolor=black>&nbsp;</td><td><pre class='sample'>
-set row [::mysql::next \$handle]
-if {[mysql::isnull [lindex \$row 1]]} {
+set row [::mysql::next $handle]
+if {[mysql::isnull [lindex $row 1]]} {
    puts &quot;2. column of $row is null&quot;
 }
-if {[mysql::isnull \$row]} {
+if {[mysql::isnull $row]} {
    puts &quot;this does not work, because of type conversation list to string&quot;
 }
 </pre></td></tr></table></p>
@@ -774,6 +823,12 @@ there are only 2 options now: -multi_statment_on and -multi_statment_off
 <dt><a name="32"><b class='cmd'>::mysql::shutdown</b> <i class='arg'>handle</i></a><dd>
 
 Asks the database server to shut down. The connected user must have SHUTDOWN privileges. 
+
+<br><br>
+<dt><a name="33"><b class='cmd'>::mysql::encoding</b> <i class='arg'>handle</i> ?encoding?</a><dd>
+
+Ask or change a encoding of connection.
+There are special encoding &quot;binary&quot; for binary data transfers.
 
 </dl>
 
@@ -839,6 +894,7 @@ Paolo Brutti
 <br><br>
 <li>
 Artur Trzewik (mail@xdobry.de) - active maintainer
+
 </ul>
 
 MySQLTcl is derived from a patch of msql by Hakan Soderstrom, Soderstrom Programvaruverkstad,

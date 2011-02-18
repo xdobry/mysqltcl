@@ -42,19 +42,17 @@ proc prepareTestDB {} {
         mysqlexec $handle "CREATE DATABASE $dbank"
     }
     mysqluse $handle $dbank
-    if {[lsearch [mysqlinfo $handle tables] Student]<0} {
-        puts "Test Table Student does not exist. Create it"
-        mysqlexec $handle {
-        	CREATE TABLE Student (
-  				MatrNr int NOT NULL auto_increment,
-				Name varchar(20),
-				Semester int,
-				PRIMARY KEY (MatrNr)
-			)
-       }
+    
+    catch {mysqlexec $handle {drop table Student}}
+
+    mysqlexec $handle {
+       	CREATE TABLE Student (
+ 		MatrNr int NOT NULL auto_increment,
+		Name varchar(20),
+		Semester int,
+		PRIMARY KEY (MatrNr)
+	)
     }
-    # clean test table
-    mysqlexec $handle "delete from Student"
     mysqlexec $handle "INSERT INTO Student VALUES (1,'Sojka',4)"
     mysqlexec $handle "INSERT INTO Student VALUES (2,'Preisner',2)"
     mysqlexec $handle "INSERT INTO Student VALUES (3,'Killar',2)"
@@ -137,6 +135,11 @@ tcltest::test {select-1.0} {use implicit database notation} -body {
 }
 
 set handle [getConnection]
+
+tcltest::test {use-1.0} {false use} -body {
+    mysqluse $handle notdb2
+} -returnCodes error -match glob -result "mysqluse/db server: Unknown database 'notdb2'"
+
 
 tcltest::test {select-1.1} {Test sel and next functions} -body {
    mysqluse $handle uni
@@ -361,7 +364,7 @@ tcltest::test {handle-1.2} {open 20 connection, close all} -body {
 }
 
 tcltest::test {handle-1.3} {10 queries, close all} -body {
-	set handle [mysqlconnect -user root -db uni]
+	set handle [getConnection]
 	for {set x 0} {$x<10} {incr x} {
     	lappend queries [mysqlquery $handle {select * from Student}]
 	}
@@ -373,7 +376,7 @@ tcltest::test {handle-1.3} {10 queries, close all} -body {
 } -returnCodes error -match glob -result "*handle already closed*"
 
 tcltest::test {handle-1.4} {10 queries, close all} -body {
-	set handle [mysqlconnect -user root -db uni]
+	set handle [getConnection]
 	mysqlquery $handle {select * from Student}
 	mysqlclose
 	return
@@ -404,19 +407,17 @@ tcltest::test {changeuser-1.0} {escaping} -body {
 }
 
 # does not work for mysql4.1
-if 0 {
 tcltest::test {changeuser-1.1} {no such user} -body {
-	mysqlchangeuser $handle nonuser {} uni
+	mysqlchangeuser $handle root {} nodb
 } -returnCodes error -match glob -result "*Unknown database*"
-}
 
 tcltest::test {interpreter-1.0} {mysqltcl in slave interpreter} -body {
-	set handle [mysqlconnect -user root -db uni]
+	set handle [getConnection]
 	set i1 [interp create]
-	$i1 eval {
+	$i1 eval "
 	  package require mysqltcl
-	  set hdl [mysqlconnect -user root -db uni]
-	}
+	  set hdl [mysqlconnect -user $dbuser -db $dbank]
+	"
 	interp delete $i1
 	mysqlinfo $handle databases
 	mysqlclose $handle

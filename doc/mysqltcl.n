@@ -2,7 +2,242 @@
 '\" Generated from file 'mysqltcl.man' by tcllib/doctools with format 'nroff'
 '\"
 '\" -*- tcl -*- mysqltcl manpage
-.so man.macros
+'\" The definitions below are for supplemental macros used in Tcl/Tk
+'\" manual entries.
+'\"
+'\" .AP type name in/out ?indent?
+'\"	Start paragraph describing an argument to a library procedure.
+'\"	type is type of argument (int, etc.), in/out is either "in", "out",
+'\"	or "in/out" to describe whether procedure reads or modifies arg,
+'\"	and indent is equivalent to second arg of .IP (shouldn't ever be
+'\"	needed;  use .AS below instead)
+'\"
+'\" .AS ?type? ?name?
+'\"	Give maximum sizes of arguments for setting tab stops.  Type and
+'\"	name are examples of largest possible arguments that will be passed
+'\"	to .AP later.  If args are omitted, default tab stops are used.
+'\"
+'\" .BS
+'\"	Start box enclosure.  From here until next .BE, everything will be
+'\"	enclosed in one large box.
+'\"
+'\" .BE
+'\"	End of box enclosure.
+'\"
+'\" .CS
+'\"	Begin code excerpt.
+'\"
+'\" .CE
+'\"	End code excerpt.
+'\"
+'\" .VS ?version? ?br?
+'\"	Begin vertical sidebar, for use in marking newly-changed parts
+'\"	of man pages.  The first argument is ignored and used for recording
+'\"	the version when the .VS was added, so that the sidebars can be
+'\"	found and removed when they reach a certain age.  If another argument
+'\"	is present, then a line break is forced before starting the sidebar.
+'\"
+'\" .VE
+'\"	End of vertical sidebar.
+'\"
+'\" .DS
+'\"	Begin an indented unfilled display.
+'\"
+'\" .DE
+'\"	End of indented unfilled display.
+'\"
+'\" .SO
+'\"	Start of list of standard options for a Tk widget.  The
+'\"	options follow on successive lines, in four columns separated
+'\"	by tabs.
+'\"
+'\" .SE
+'\"	End of list of standard options for a Tk widget.
+'\"
+'\" .OP cmdName dbName dbClass
+'\"	Start of description of a specific option.  cmdName gives the
+'\"	option's name as specified in the class command, dbName gives
+'\"	the option's name in the option database, and dbClass gives
+'\"	the option's class in the option database.
+'\"
+'\" .UL arg1 arg2
+'\"	Print arg1 underlined, then print arg2 normally.
+'\"
+'\" RCS: @(#) $Id$
+'\"
+'\"	# Set up traps and other miscellaneous stuff for Tcl/Tk man pages.
+.if t .wh -1.3i ^B
+.nr ^l \n(.l
+.ad b
+'\"	# Start an argument description
+.de AP
+.ie !"\\$4"" .TP \\$4
+.el \{\
+.   ie !"\\$2"" .TP \\n()Cu
+.   el          .TP 15
+.\}
+.ta \\n()Au \\n()Bu
+.ie !"\\$3"" \{\
+\&\\$1	\\fI\\$2\\fP	(\\$3)
+.\".b
+.\}
+.el \{\
+.br
+.ie !"\\$2"" \{\
+\&\\$1	\\fI\\$2\\fP
+.\}
+.el \{\
+\&\\fI\\$1\\fP
+.\}
+.\}
+..
+'\"	# define tabbing values for .AP
+.de AS
+.nr )A 10n
+.if !"\\$1"" .nr )A \\w'\\$1'u+3n
+.nr )B \\n()Au+15n
+.\"
+.if !"\\$2"" .nr )B \\w'\\$2'u+\\n()Au+3n
+.nr )C \\n()Bu+\\w'(in/out)'u+2n
+..
+.AS Tcl_Interp Tcl_CreateInterp in/out
+'\"	# BS - start boxed text
+'\"	# ^y = starting y location
+'\"	# ^b = 1
+.de BS
+.br
+.mk ^y
+.nr ^b 1u
+.if n .nf
+.if n .ti 0
+.if n \l'\\n(.lu\(ul'
+.if n .fi
+..
+'\"	# BE - end boxed text (draw box now)
+.de BE
+.nf
+.ti 0
+.mk ^t
+.ie n \l'\\n(^lu\(ul'
+.el \{\
+.\"	Draw four-sided box normally, but don't draw top of
+.\"	box if the box started on an earlier page.
+.ie !\\n(^b-1 \{\
+\h'-1.5n'\L'|\\n(^yu-1v'\l'\\n(^lu+3n\(ul'\L'\\n(^tu+1v-\\n(^yu'\l'|0u-1.5n\(ul'
+.\}
+.el \}\
+\h'-1.5n'\L'|\\n(^yu-1v'\h'\\n(^lu+3n'\L'\\n(^tu+1v-\\n(^yu'\l'|0u-1.5n\(ul'
+.\}
+.\}
+.fi
+.br
+.nr ^b 0
+..
+'\"	# VS - start vertical sidebar
+'\"	# ^Y = starting y location
+'\"	# ^v = 1 (for troff;  for nroff this doesn't matter)
+.de VS
+.if !"\\$2"" .br
+.mk ^Y
+.ie n 'mc \s12\(br\s0
+.el .nr ^v 1u
+..
+'\"	# VE - end of vertical sidebar
+.de VE
+.ie n 'mc
+.el \{\
+.ev 2
+.nf
+.ti 0
+.mk ^t
+\h'|\\n(^lu+3n'\L'|\\n(^Yu-1v\(bv'\v'\\n(^tu+1v-\\n(^Yu'\h'-|\\n(^lu+3n'
+.sp -1
+.fi
+.ev
+.\}
+.nr ^v 0
+..
+'\"	# Special macro to handle page bottom:  finish off current
+'\"	# box/sidebar if in box/sidebar mode, then invoked standard
+'\"	# page bottom macro.
+.de ^B
+.ev 2
+'ti 0
+'nf
+.mk ^t
+.if \\n(^b \{\
+.\"	Draw three-sided box if this is the box's first page,
+.\"	draw two sides but no top otherwise.
+.ie !\\n(^b-1 \h'-1.5n'\L'|\\n(^yu-1v'\l'\\n(^lu+3n\(ul'\L'\\n(^tu+1v-\\n(^yu'\h'|0u'\c
+.el \h'-1.5n'\L'|\\n(^yu-1v'\h'\\n(^lu+3n'\L'\\n(^tu+1v-\\n(^yu'\h'|0u'\c
+.\}
+.if \\n(^v \{\
+.nr ^x \\n(^tu+1v-\\n(^Yu
+\kx\h'-\\nxu'\h'|\\n(^lu+3n'\ky\L'-\\n(^xu'\v'\\n(^xu'\h'|0u'\c
+.\}
+.bp
+'fi
+.ev
+.if \\n(^b \{\
+.mk ^y
+.nr ^b 2
+.\}
+.if \\n(^v \{\
+.mk ^Y
+.\}
+..
+'\"	# DS - begin display
+.de DS
+.RS
+.nf
+.sp
+..
+'\"	# DE - end display
+.de DE
+.fi
+.RE
+.sp
+..
+'\"	# SO - start of list of standard options
+.de SO
+.SH "STANDARD OPTIONS"
+.LP
+.nf
+.ta 4c 8c 12c
+.ft B
+..
+'\"	# SE - end of list of standard options
+.de SE
+.fi
+.ft R
+.LP
+See the \\fBoptions\\fR manual entry for details on the standard options.
+..
+'\"	# OP - start of full description for a single option
+.de OP
+.LP
+.nf
+.ta 4c
+Command-Line Name:	\\fB\\$1\\fR
+Database Name:	\\fB\\$2\\fR
+Database Class:	\\fB\\$3\\fR
+.fi
+.IP
+..
+'\"	# CS - begin code excerpt
+.de CS
+.RS
+.nf
+.ta .25i .5i .75i 1i
+..
+'\"	# CE - end code excerpt
+.de CE
+.fi
+.RE
+..
+.de UL
+\\$1\l'|0\(ul'\\$2
+..
 .TH "mysqltcl" n 3.0  ""
 .BS
 .SH "NAME"
@@ -113,6 +348,8 @@ package require \fBmysqltcl  3.0\fR
 .sp
 \fB::mysql::shutdown\fR \fIhandle\fR
 .sp
+\fB::mysql::encoding\fR \fIhandle\fR ?encoding?
+.sp
 .BE
 .SH "DESCRIPTION"
 MySQLTcl is a collection of Tcl commands and a Tcl global array that
@@ -171,9 +408,6 @@ special encoding that you want to use in your database. Consider what another sy
 database and what encoding they expect. It can useful
 to use -encoding utf-8. That is standard encoding in some linux distributions and newer systems.
 .TP
-\fB-ssl\fR \fIboolean\fR
-Switch to SSL after handshake. Default is  false
-.TP
 \fB-compress\fR \fIboolean\fR
 Use compression protocol. Default is false
 .TP
@@ -202,6 +436,29 @@ Default is false.
 Allow interactive_timeout seconds (instead of wait_timeout seconds) of inactivity before closing the connection.
 The client's session wait_timeout variable will be set to the value of the session interactive_timeout variable.
 Default is false.
+.TP
+\fB-ssl\fR \fIboolean\fR
+Switch to SSL after handshake. Default is  false
+.TP
+\fB-sslkey\fR \fIstring\fR
+is the pathname to the key file.
+Used if -ssl is true
+.TP
+\fB-sslcert\fR \fIstring\fR
+is the pathname to the certificate file.
+Used if -ssl is true
+.TP
+\fB-sslca\fR \fIstring\fR
+is the pathname to the certificate authority file.
+Used if -ssl is true
+.TP
+\fB-sslcapath\fR \fIstring\fR
+is the pathname to a directory that contains trusted SSL CA certificates in pem format.
+Used if -ssl is true
+.TP
+\fB-sslcipher\fR \fIstring\fR
+is a list of allowable ciphers to use for SSL encryption.
+Used if -ssl is true
 .RE
 .TP
 \fB::mysql::use\fR \fIhandle\fR \fIdatabase\fR
@@ -246,7 +503,7 @@ Example:
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS" -flatlist
 {1 Joe 2 Phil 3 John}
 .fi
-Note that both list syntaxes are faster than something like\\fB
+Note that both list syntaxes are faster than something like
 .nf
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS"
 % ::mysql::map $db {id name} {lappend result $id $name}
@@ -293,12 +550,12 @@ freed with \fI::mysql::endquery query-hanlde\fR command.
 .sp
 Example:
 .nf
-set query1 [::mysql::query \\$db {SELECT ID, NAME FROM FRIENDS}\\]
-while {[set row [::mysql::fetch \\$query1]]!=""} {
-    set id [lindex \\$row 0]
-    set query2 [::mysql::query \\$db "SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID"]
-    ::mysql::map \\$query2 address { puts "address = $address" }
-    ::mysql::endquery \\$query2
+set query1 [::mysql::query $db {SELECT ID, NAME FROM FRIENDS}\\]
+while {[set row [::mysql::fetch $query1]]!=""} {
+    set id [lindex $row 0]
+    set query2 [::mysql::query $db "SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID"]
+    ::mysql::map $query2 address { puts "address = $address" }
+    ::mysql::endquery $query2
 }
 ::mysql::endquery $query1
 .fi
@@ -349,17 +606,17 @@ The binding list variables retain their last values after the command
 has completed.
 .sp
 A simple example follows.
-Assume $db is a handle in use.\\fB
+Assume $db is a handle in use.
 .nf
-::mysql::sel \\$db {
+::mysql::sel $db {
     select lname, fname, area, phone from friends order by lname, fname
 }
-::mysql::map \\$db {ln fn - phone} {
-   if {\\$phone == {}} continue
-   puts [format "%16s %-8s %s" \\$ln \\$fn \\$phone]
+::mysql::map $db {ln fn - phone} {
+   if {$phone == {}} continue
+   puts [format "%16s %-8s %s" $ln $fn $phone]
 }
 .fi
-The ::mysql::sel command gets and sorts all rows from table \\fIfriends].
+The ::mysql::sel command gets and sorts all rows from table friends.
 The ::mysql::map command is used to format and print the result in a way
 suitable for a phone list.
 For demonstration purposes one of the columns (area) is not used.
@@ -475,7 +732,7 @@ value for each column.
 The following is a sample interactive session containing all forms of
 the ::mysql::col command and their results.
 The last command uses the \fI-current\fR option.
-It could alternatively specify the table name explicitly.\\fB
+It could alternatively specify the table name explicitly.
 .nf
 %::mysql::col $db friends name
 name lname area phone
@@ -521,6 +778,23 @@ string if the handle is not valid.
 Return a list of all table names in the database with which the handle
 is associated.
 The handle must be in use.
+.TP
+\fBserverversion\fR
+Returns the version number of the server as a string.
+.TP
+\fBserverversionid\fR
+Returns the version number of the server as an integer.
+.TP
+\fBsqlstate\fR
+Returns a string containing the SQLSTATE error code for the last error.
+The error code consists of five characters. '00000' means ``no error.''
+The values are specified by ANSI SQL and ODBC.
+Note that not all MySQL errors are yet mapped to SQLSTATE's.
+The value 'HY000' (general error) is used for unmapped errors.
+.TP
+\fBstate\fR
+Returns a character string containing information similar to that provided by the mysqladmin status command.
+This includes uptime in seconds and the number of running threads, questions, reloads, and open tables.
 .RE
 .TP
 \fB::mysql::baseinfo\fR \fIoption\fR
@@ -583,7 +857,7 @@ Return the number of rows that can be read sequentially from the
 current position in the pending result; an empty string if no result
 is pending.
 .sp
-[::mysql::result \\$db current] + [::mysql::result \\$db rows]
+[::mysql::result $db current] + [::mysql::result $db rows]
 always equals the total number of rows in the pending result.
 .RE
 .TP
@@ -652,22 +926,22 @@ Returns true if more results exist from the currently executed query, and the ap
 Returns the number of warnings generated during execution of the previous SQL statement.
 .TP
 \fB::mysql::isnull\fR \fIvalue\fR
-Null handling is known problem by Tcl to DB interfaces.
-Mysql varchar type known 2 valid values NULL and empty string.
-There is no way to difference it in core Tcl because of it strong string based
-philosophy.
+Null handling is a known problem with Tcl, especially with DB interaction.
+The mysql "varchar" type has two valid blank values, NULL and an empty
+string. This is where the problem arises; Tcl is not able to differentiate
+between the two because of the way it handles strings.
 Mysql has new internal Tcl type for null that string representation is stored
 in global array mysqltcl(nullvalue) and as default empty string.
 mysql::isnull can be used for safe check for null value.
 Warning mysql::isnull works only reliable if there are no type conversation on
 returned rows.
-Consider row is always Tcl list even when there are only on column in the row.
+Consider row is always Tcl list even when there are only one column in the row.
 .nf
-set row [::mysql::next \\$handle]
-if {[mysql::isnull [lindex \\$row 1]]} {
+set row [::mysql::next $handle]
+if {[mysql::isnull [lindex $row 1]]} {
    puts "2. column of $row is null"
 }
-if {[mysql::isnull \\$row]} {
+if {[mysql::isnull $row]} {
    puts "this does not work, because of type conversation list to string"
 }
 .fi
@@ -680,6 +954,10 @@ there are only 2 options now: -multi_statment_on and -multi_statment_off
 .TP
 \fB::mysql::shutdown\fR \fIhandle\fR
 Asks the database server to shut down. The connected user must have SHUTDOWN privileges.
+.TP
+\fB::mysql::encoding\fR \fIhandle\fR ?encoding?
+Ask or change a encoding of connection.
+There are special encoding "binary" for binary data transfers.
 .SH "STATUS INFORMATION"
 Mysqltcl creates and maintains a Tcl global array to provide status
 information.

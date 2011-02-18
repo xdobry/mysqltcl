@@ -104,9 +104,6 @@ special encoding that you want to use in your database. Consider what another sy
 database and what encoding they expect. It can useful
 to use -encoding utf-8. That is standard encoding in some linux distributions and newer systems.
 
-[opt_def -ssl [arg boolean]]
-Switch to SSL after handshake. Default is  false
-
 [opt_def -compress [arg boolean]]
 Use compression protocol. Default is false
 
@@ -135,6 +132,29 @@ Default is false.
 Allow interactive_timeout seconds (instead of wait_timeout seconds) of inactivity before closing the connection.
 The client's session wait_timeout variable will be set to the value of the session interactive_timeout variable.
 Default is false.
+
+[opt_def -ssl [arg boolean]]
+Switch to SSL after handshake. Default is  false
+
+[opt_def -sslkey [arg string]]
+is the pathname to the key file. 
+Used if -ssl is true
+
+[opt_def -sslcert [arg string]]
+is the pathname to the certificate file.
+Used if -ssl is true
+
+[opt_def -sslca [arg string]]
+is the pathname to the certificate authority file. 
+Used if -ssl is true
+
+[opt_def -sslcapath [arg string]]
+is the pathname to a directory that contains trusted SSL CA certificates in pem format. 
+Used if -ssl is true
+
+[opt_def -sslcipher [arg string]]
+is a list of allowable ciphers to use for SSL encryption. 
+Used if -ssl is true
 
 [list_end]
 
@@ -187,7 +207,7 @@ Example:
 {1 Joe 2 Phil 3 John}
 [example_end]
 
-Note that both list syntaxes are faster than something like\fB
+Note that both list syntaxes are faster than something like
 
 [example_begin]
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS"
@@ -239,12 +259,12 @@ freed with [emph "::mysql::endquery query-hanlde"] command.
 [nl]
 Example:
 [example_begin]
-set query1 [lb]::mysql::query \$db {SELECT ID, NAME FROM FRIENDS}\[rb]
-while {[lb]set row [lb]::mysql::fetch \$query1[rb][rb]!=""} {
-    set id [lb]lindex \$row 0[rb]
-    set query2 [lb]::mysql::query \$db "SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID"[rb]
-    ::mysql::map \$query2 address { puts "address = $address" }
-    ::mysql::endquery \$query2
+set query1 [lb]::mysql::query $db {SELECT ID, NAME FROM FRIENDS}\[rb]
+while {[lb]set row [lb]::mysql::fetch $query1[rb][rb]!=""} {
+    set id [lb]lindex $row 0[rb]
+    set query2 [lb]::mysql::query $db "SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID"[rb]
+    ::mysql::map $query2 address { puts "address = $address" }
+    ::mysql::endquery $query2
 }
 ::mysql::endquery $query1
 [example_end]
@@ -298,17 +318,17 @@ The binding list variables retain their last values after the command
 has completed.
 [nl]
 A simple example follows.
-Assume $db is a handle in use.\fB
+Assume $db is a handle in use.
 [example_begin]
-::mysql::sel \$db {
+::mysql::sel $db {
     select lname, fname, area, phone from friends order by lname, fname
 }
-::mysql::map \$db {ln fn - phone} {
-   if {\$phone == {}} continue
-   puts [lb]format "%16s %-8s %s" \$ln \$fn \$phone[rb]
+::mysql::map $db {ln fn - phone} {
+   if {$phone == {}} continue
+   puts [lb]format "%16s %-8s %s" $ln $fn $phone[rb]
 }
 [example_end]
-The ::mysql::sel command gets and sorts all rows from table \fIfriends].
+The ::mysql::sel command gets and sorts all rows from table friends.
 The ::mysql::map command is used to format and print the result in a way
 suitable for a phone list.
 For demonstration purposes one of the columns (area) is not used.
@@ -427,7 +447,7 @@ value for each column.
 The following is a sample interactive session containing all forms of
 the ::mysql::col command and their results.
 The last command uses the [emph -current] option.
-It could alternatively specify the table name explicitly.\fB
+It could alternatively specify the table name explicitly.
 [example_begin]
 %::mysql::col $db friends name
 name lname area phone
@@ -474,6 +494,25 @@ string if the handle is not valid.
 Return a list of all table names in the database with which the handle
 is associated.
 The handle must be in use.
+
+[opt_def serverversion] 
+Returns the version number of the server as a string.
+
+[opt_def serverversionid]
+Returns the version number of the server as an integer.
+
+[opt_def sqlstate]
+Returns a string containing the SQLSTATE error code for the last error.
+The error code consists of five characters. '00000' means ``no error.''
+The values are specified by ANSI SQL and ODBC.
+
+Note that not all MySQL errors are yet mapped to SQLSTATE's.
+The value 'HY000' (general error) is used for unmapped errors. 
+
+[opt_def state]
+Returns a character string containing information similar to that provided by the mysqladmin status command.
+This includes uptime in seconds and the number of running threads, questions, reloads, and open tables.
+
 [list_end]
 
 [call [cmd ::mysql::baseinfo] [arg option]]
@@ -541,7 +580,7 @@ Return the number of rows that can be read sequentially from the
 current position in the pending result; an empty string if no result
 is pending.
 [nl]
-[lb]::mysql::result \$db current[rb] + [lb]::mysql::result \$db rows[rb]
+[lb]::mysql::result $db current[rb] + [lb]::mysql::result $db rows[rb]
 always equals the total number of rows in the pending result.
 [list_end]
 
@@ -615,10 +654,10 @@ Returns the number of warnings generated during execution of the previous SQL st
 
 
 [call [cmd ::mysql::isnull] [arg value]]
-Null handling is known problem by Tcl to DB interfaces.
-Mysql varchar type known 2 valid values NULL and empty string.
-There is no way to difference it in core Tcl because of it strong string based
-philosophy.
+Null handling is a known problem with Tcl, especially with DB interaction.
+The mysql "varchar" type has two valid blank values, NULL and an empty
+string. This is where the problem arises; Tcl is not able to differentiate
+between the two because of the way it handles strings.
 Mysql has new internal Tcl type for null that string representation is stored
 in global array mysqltcl(nullvalue) and as default empty string.
 mysql::isnull can be used for safe check for null value.
@@ -626,11 +665,11 @@ Warning mysql::isnull works only reliable if there are no type conversation on
 returned rows.
 Consider row is always Tcl list even when there are only one column in the row.
 [example_begin]
-set row [lb]::mysql::next \$handle[rb]
-if {[lb]mysql::isnull [lb]lindex \$row 1[rb]]} {
+set row [lb]::mysql::next $handle[rb]
+if {[lb]mysql::isnull [lb]lindex $row 1[rb]]} {
    puts "2. column of $row is null"
 }
-if {[lb]mysql::isnull \$row[rb]} {
+if {[lb]mysql::isnull $row[rb]} {
    puts "this does not work, because of type conversation list to string"
 }
 [example_end]
@@ -643,6 +682,10 @@ there are only 2 options now: -multi_statment_on and -multi_statment_off
 
 [call [cmd ::mysql::shutdown] [arg handle]]
 Asks the database server to shut down. The connected user must have SHUTDOWN privileges. 
+
+[call [cmd ::mysql::encoding] [arg handle] [opt encoding]]
+Ask or change a encoding of connection.
+There are special encoding "binary" for binary data transfers.
 
 [list_end]
 
@@ -699,6 +742,7 @@ Tobias Ritzau
 Paolo Brutti
 [bullet]
 Artur Trzewik (mail@xdobry.de) - active maintainer
+
 [list_end]
 
 MySQLTcl is derived from a patch of msql by Hakan Soderstrom, Soderstrom Programvaruverkstad,

@@ -15,27 +15,67 @@ if {[file exists libload.tcl]} {
     source [file join [file dirname [info script]] libload.tcl]
 }
 
+# global connect variables
+set dbuser root
+set dbpassword ""
+set dbank mysqltcltest
+
 package require tcltest
 variable SETUP {#common setup code}
 variable CLEANUP {#common cleanup code}
 tcltest::configure -verbose bet
 
-proc setConnect {} {
-   global conn
-   set conn [mysqlconnect -user root -db uni -multistatement 1]
+proc getConnection {{addOptions {}} {withDB 1}} {
+    global dbuser dbpassword dbank
+    if {$withDB} {
+        append addOptions " -db $dbank"
+    }
+    if {$dbpassword ne ""} {
+	    append addOptions " -password $dbpassword"
+    }
+    return [eval mysqlconnect -user $dbuser $addOptions]
 }
-# Create Table suitable for transaction tests
-proc initTestTable {} {
-   global conn
-   # drop table if exists
-   catch {mysql::exec $conn {drop table transtest}}
-   mysql::exec $conn {
+proc prepareTestDB {} {
+    global dbank
+    set handle [getConnection {} 0]
+    if {[lsearch [mysqlinfo $handle databases] $dbank]<0} {
+        puts "Testdatabase $dbank does not exist. Create it"
+        mysqlexec $handle "CREATE DATABASE $dbank"
+    }
+    mysqluse $handle $dbank
+
+    catch {mysql::exec $handle {drop table transtest}}
+    mysql::exec $handle {
       create table transtest (
          id int,
          name varchar(20)
       ) ENGINE=INNODB
-   }
+    }
+
+    catch {mysql::exec $handle {drop table Student}}
+    mysql::exec $handle {
+       	CREATE TABLE Student (
+ 		MatrNr int NOT NULL auto_increment,
+		Name varchar(20),
+		Semester int,
+		PRIMARY KEY (MatrNr)
+	)
+    }
+    mysql::exec $handle "INSERT INTO Student VALUES (1,'Sojka',4)"
+    mysql::exec $handle "INSERT INTO Student VALUES (2,'Preisner',2)"
+    mysql::exec $handle "INSERT INTO Student VALUES (3,'Killar',2)"
+    mysql::exec $handle "INSERT INTO Student VALUES (4,'Penderecki',10)"
+    mysql::exec $handle "INSERT INTO Student VALUES (5,'Turnau',2)"
+    mysql::exec $handle "INSERT INTO Student VALUES (6,'Grechuta',3)"
+    mysql::exec $handle "INSERT INTO Student VALUES (7,'Gorniak',1)"
+    mysql::exec $handle "INSERT INTO Student VALUES (8,'Niemen',3)"
+    mysql::exec $handle "INSERT INTO Student VALUES (9,'Bem',5)"
+    mysql::close $handle
 }
+
+prepareTestDB
+set conn [getConnection {-multistatement 1}]
+
 
 tcltest::test {null-1.0} {creating of null} {
   set null [mysql::newnull]
@@ -58,9 +98,6 @@ tcltest::test {null-1.4} {null checking} {
   mysql::isnull [lindex [list [mysql::newnull]] 0]
 } {1}
 
-# We need connection for folowing tests
-setConnect
-initTestTable
 
 tcltest::test {autocommit} {setting autocommit} -body {
    mysql::autocommit $conn 0
@@ -187,6 +224,11 @@ tcltest::test {info-1.2} {sqlstate} -body {
   return
 }
 
+tcltest::test {info-1.3} {sqlstate} -body {
+  mysql::info $conn state
+  return
+}
+
 tcltest::test {state-1.0} {reported bug in 3.51} -body {
   mysql::state nothandle -numeric
 } -result 0
@@ -213,6 +255,72 @@ tcltest::test {baseinfo-1.0} {clientversionid} -body {
   expr {[mysql::baseinfo clientversionid]>0}
 } -result 1
 
+tcltest::test {encoding-1.0} {read system encoding} -body {
+  mysql::encoding $conn
+} -result [encoding system]
+
+tcltest::test {encoding-1.1} {change to binary} -body {
+  mysql::encoding $conn binary
+  mysql::exec $conn "INSERT INTO Student (Name,Semester) VALUES ('Test',4)"
+  mysql::encoding $conn
+} -result binary
+
+tcltest::test {encoding-1.2} {change to binary} -body {
+  mysql::encoding $conn [encoding system]
+  mysql::exec $conn "INSERT INTO Student (Name,Semester) VALUES ('Test',4)"
+  mysql::encoding $conn
+} -result [encoding system]
+
+tcltest::test {encoding-1.3} {change to binary} -body {
+  mysql::encoding $conn iso8859-1
+  mysql::exec $conn "INSERT INTO Student (Name,Semester) VALUES ('Test',4)"
+  mysql::encoding $conn
+} -result iso8859-1
+
+tcltest::test {encoding-1.4} {unknown encoding} -body {
+  mysql::encoding $conn unknown
+} -returnCodes error -match glob -result "unknown encoding*"
+
+tcltest::test {encoding-1.5} {changing encoding of query handle} -body {
+  set q [mysql::query $conn "select * from Student"]
+  mysql::encoding $q iso8859-1
+} -cleanup {
+  mysql::endquery $q
+} -returnCodes error -result "encoding set can be used only on connection handle"
+
+tcltest::test {encoding-1.6} {changing encoding of handle} -body {
+  mysql::encoding $conn iso8859-1
+  set q [mysql::query $conn "select * from Student"]
+  mysql::encoding $q
+} -cleanup {
+  mysql::endquery $q
+} -result iso8859-1
+
+tcltest::test {encoding-1.7} {changing encoding of handle} -body {
+  set q [mysql::query $conn "select * from Student"]
+  mysql::encoding $conn iso8859-1
+  mysql::encoding $q
+} -cleanup {
+  mysql::endquery $q
+} -result iso8859-1
+
+tcltest::test {encoding-1.8} {changing encoding of handle} -body {
+  mysql::encoding $conn utf-8
+  set q [mysql::query $conn "select * from Student"]
+  mysql::encoding $conn iso8859-1
+  mysql::encoding $q
+} -cleanup {
+  mysql::endquery $q
+} -result iso8859-1
+
+tcltest::test {encoding-1.8} {changing encoding of handle} -body {
+  mysql::encoding $conn iso8859-5
+  set q [mysql::query $conn "select Name from Student"]
+  mysql::encoding $conn utf-8
+  mysql::fetch $q
+  mysql::endquery $q
+  return    
+}
 
 # no prepared statements in this version
 if 0 {

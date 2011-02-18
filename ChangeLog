@@ -1,3 +1,10 @@
+Release 3.01
+-- bug in mysql::nextresult fixed
+-- bug in man format doc fixed
+-- new command mysql::encoding
+-- new ssl connection options -sslkey -sslcert -sslca -sslcapath -sslciphers using of mysql_ssl_set
+-- new command option mysq::info state
+-- removed c-header installation section from Makefile.in
 Release 3.00
 -- all comands are defined in ::mysql namespace 
 -- commands are renamed after pattern mysqlconnect mysql::connect
