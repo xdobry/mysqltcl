@@ -1,3 +1,9 @@
+Release 2.30
+-- new connection options -ssl -odbc -noschema -compress
+-- mysqlescape can take also handle as argument to use mysql_real_escape_string and respect character setting
+-- new command mysqlbaseinfo -connectparameters | -clientversion that return all suported connect parameters or version of client C-API library
+-- new command mysqlping for checking and refresh of connection
+-- new command mysqlchangeuser for change user and database
 Release 2.20
 -- mysqlconnect was extended with option -encoding. Similar behavior to fconfigure. (initial patch written by Alexander Schoepe) The Version is not full compatible with oldier version. The differences are be reading date from mysql. Now the date are converted from External to Utf. See documentation for more information.
 Release 2.14

@@ -209,6 +209,27 @@ if {$rname!=$name} {
 }
 mysqlexec $handle "DELETE FROM Student WHERE MatrNr = $newid"
 
+# escaping
+
+mysqlescape "art\"ur"
+mysqlescape $handle "art\"ur"
+
+# ping
+
+if {![mysqlping $handle]} {
+    error "connection shoul be alive"
+}
+
+# change user
+
+mysqlchangeuser $handle root {}
+mysqlchangeuser $handle root {} uni 
+if {![catch {mysqlchangeuser $handle nonuser {} uni}]} {
+    error "this mysqlchangeuser should cause error"
+} else {
+   puts $errorInfo
+}
+
 mysqlclose $handle
 
 catch {
@@ -219,5 +240,31 @@ puts $errorInfo
 # endcoding
 set handle [mysqlconnect -user root -db uni -encoding binary]
 mysqlclose $handle
+
+
+
+# testing connection flags
+
+
+puts "testing connection options"
+set handle [mysqlconnect -user root -db uni -ssl 1]
+mysqlclose $handle
+
+set handle [mysqlconnect -user root -db uni -noschema 1]
+mysqlclose $handle
+
+set handle [mysqlconnect -user root -db uni -noschema 0]
+mysqlclose $handle
+
+set handle [mysqlconnect -user root -db uni -compress 1]
+mysqlclose $handle
+
+set handle [mysqlconnect -user root -db uni -odbc 1]
+mysqlclose $handle
+
+# testing base info
+
+puts [mysqlbaseinfo connectparameters]
+puts [mysqlbaseinfo clientversion]
 
 puts "End of test"

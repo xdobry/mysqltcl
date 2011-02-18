@@ -395,7 +395,6 @@ static int mysql_QueryTclObj(MysqlTclHandle *handle,Tcl_Obj *obj)
 } 
 static Tcl_Obj *getRowCellAsObject(MysqlTclHandle *handle,MYSQL_ROW row,int length) 
 {
-  char *val;
   Tcl_Obj *obj;
   Tcl_DString ds;
 
@@ -667,6 +666,13 @@ Mysqltcl_Kill (clientData)
  *      TCL_ERROR - connect not successful - error message returned
  */
 
+static CONST char* MysqlConnectOpt[] =
+    {
+      "-host", "-user", "-password", "-db", "-port", "-socket","-encoding",
+      "-ssl", "-compress", "-noschema","-odbc",
+      NULL
+    };
+
 DEFINE_CMD(Mysqltcl_Connect)
 {
   int        i, idx;
@@ -674,24 +680,22 @@ DEFINE_CMD(Mysqltcl_Connect)
   char *user = NULL;
   char *password = NULL;
   char *db = NULL;
-  int port = 0;
+  int port = 0, flags = 0, booleanflag;
   char *socket = NULL;
   char *encodingname = NULL;
   MysqlTclHandle *handle;
   const char *groupname = "mysqltcl";
 
-  static CONST char* MysqlConnectOpt[] =
-    {
-      "-host", "-user", "-password", "-db", "-port", "-socket","-encoding",
-      NULL
-    };
+  
   enum connectoption {
     MYSQL_CONNHOST_OPT, MYSQL_CONNUSER_OPT, MYSQL_CONNPASSWORD_OPT, 
-    MYSQL_CONNDB_OPT, MYSQL_CONNPORT_OPT, MYSQL_CONNSOCKET_OPT, MYSQL_CONNENCODING_OPT
+    MYSQL_CONNDB_OPT, MYSQL_CONNPORT_OPT, MYSQL_CONNSOCKET_OPT, MYSQL_CONNENCODING_OPT,
+    MYSQL_CONNSSL_OPT, MYSQL_CONNCOMPRESS_OPT, MYSQL_CONNNOSCHEMA_OPT, MYSQL_CONNODBC_OPT
   };
+
   if (!(objc & 1) || 
     objc>(sizeof(MysqlConnectOpt)/sizeof(MysqlConnectOpt[0]-1)*2+1)) {
-    Tcl_WrongNumArgs(interp, 1, objv, "[-user xxx] [-db mysql] [-port 3306] [-host localhost] [-socket sock] [-password pass] [-encoding encoding]"
+    Tcl_WrongNumArgs(interp, 1, objv, "[-user xxx] [-db mysql] [-port 3306] [-host localhost] [-socket sock] [-password pass] [-encoding encoding] [-ssl boolean] [-compress boolean] [-odbc boolean] [-noschema boolean]"
     );
 	return TCL_ERROR;
   }
@@ -699,35 +703,58 @@ DEFINE_CMD(Mysqltcl_Connect)
   for (i = 1; i < objc; i++) {
     if (Tcl_GetIndexFromObj(interp, objv[i], MysqlConnectOpt, "option",
                           0, &idx) != TCL_OK)
-    return TCL_ERROR;
+      return TCL_ERROR;
     
-    switch (idx)
-        {
-        case MYSQL_CONNHOST_OPT:
-            hostname = Tcl_GetStringFromObj(objv[++i],NULL);
-            break;
-        case MYSQL_CONNUSER_OPT:
-            user = Tcl_GetStringFromObj(objv[++i],NULL);
-            break;
-        case MYSQL_CONNPASSWORD_OPT:
-            password = Tcl_GetStringFromObj(objv[++i],NULL);
-            break;
-        case MYSQL_CONNDB_OPT:
-            db = Tcl_GetStringFromObj(objv[++i],NULL);
-            break;
-        case MYSQL_CONNPORT_OPT:
-            if(Tcl_GetIntFromObj(interp, objv[++i], &port) != TCL_OK)
-                return TCL_ERROR;
-            break;
-        case MYSQL_CONNSOCKET_OPT:
-            socket = Tcl_GetStringFromObj(objv[++i],NULL);
-            break;
-        case MYSQL_CONNENCODING_OPT:
-	    encodingname = Tcl_GetStringFromObj(objv[++i],NULL);
-            break;
-        default:
-	        return mysql_prim_confl(interp,objc,objv,"Weirdness in options");            
-        }
+    switch (idx) {
+    case MYSQL_CONNHOST_OPT:
+      hostname = Tcl_GetStringFromObj(objv[++i],NULL);
+      break;
+    case MYSQL_CONNUSER_OPT:
+      user = Tcl_GetStringFromObj(objv[++i],NULL);
+      break;
+    case MYSQL_CONNPASSWORD_OPT:
+      password = Tcl_GetStringFromObj(objv[++i],NULL);
+      break;
+    case MYSQL_CONNDB_OPT:
+      db = Tcl_GetStringFromObj(objv[++i],NULL);
+      break;
+    case MYSQL_CONNPORT_OPT:
+      if (Tcl_GetIntFromObj(interp, objv[++i], &port) != TCL_OK)
+	return TCL_ERROR;
+      break;
+    case MYSQL_CONNSOCKET_OPT:
+      socket = Tcl_GetStringFromObj(objv[++i],NULL);
+      break;
+    case MYSQL_CONNENCODING_OPT:
+      encodingname = Tcl_GetStringFromObj(objv[++i],NULL);
+      break;
+    case MYSQL_CONNSSL_OPT:
+      if (Tcl_GetBooleanFromObj(interp,objv[++i],&booleanflag) != TCL_OK )
+	return TCL_ERROR;
+      if (booleanflag)
+	flags |= CLIENT_SSL;
+      break;
+    case MYSQL_CONNCOMPRESS_OPT:
+      if (Tcl_GetBooleanFromObj(interp,objv[++i],&booleanflag) != TCL_OK )
+	return TCL_ERROR;
+      if (booleanflag)
+	flags |= CLIENT_COMPRESS;
+      break;
+    case MYSQL_CONNNOSCHEMA_OPT: 
+      if (Tcl_GetBooleanFromObj(interp,objv[++i],&booleanflag) != TCL_OK )
+	return TCL_ERROR;
+      if (booleanflag)
+	flags |= CLIENT_NO_SCHEMA;
+      break;
+    case MYSQL_CONNODBC_OPT:
+      if (Tcl_GetBooleanFromObj(interp,objv[++i],&booleanflag) != TCL_OK )
+	return TCL_ERROR;
+      if (booleanflag)
+	flags |= CLIENT_ODBC;
+      break;
+    default:
+      return mysql_prim_confl(interp,objc,objv,"Weirdness in options");            
+    }
   }
 
   handle = createMysqlHandle();
@@ -742,7 +769,7 @@ DEFINE_CMD(Mysqltcl_Connect)
   mysql_options(handle->connection,MYSQL_READ_DEFAULT_GROUP,groupname);
 
   if (!mysql_real_connect (handle->connection, hostname, user,
-                                password, db, port, socket, 0)) {
+                                password, db, port, socket, flags)) {
       mysql_server_confl (interp,objc,objv,handle->connection);
       mysql_close (handle->connection);
       closeHandle(handle);
@@ -823,19 +850,28 @@ DEFINE_CMD(Mysqltcl_Escape)
 {
   int len;
   char *inString, *outString;
+  MysqlTclHandle *handle;
   
-  if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 2, objv, "string");
+  if (objc <2 || objc>3) {
+      Tcl_WrongNumArgs(interp, 3, objv, "?handle? string");
       return TCL_ERROR;
   }
-  /* !!! here the real_escape command should be used 
-     this need a additional parameter connection */
-
-  inString=Tcl_GetStringFromObj(objv[1], &len);
-  outString=Tcl_Alloc((len<<1) + 1);
-  len=mysql_escape_string(outString, inString, len);
-  Tcl_SetStringObj(Tcl_GetObjResult(interp), outString, len);
-  Tcl_Free(outString);
+  if (objc==2) {
+    inString=Tcl_GetStringFromObj(objv[1], &len);
+    outString=Tcl_Alloc((len<<1) + 1);
+    len=mysql_escape_string(outString, inString, len);
+    Tcl_SetStringObj(Tcl_GetObjResult(interp), outString, len);
+    Tcl_Free(outString);
+  } else { 
+    if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_CONN,
+			    "handle string")) == 0)
+      return TCL_ERROR;
+    inString=Tcl_GetStringFromObj(objv[2], &len);
+    outString=Tcl_Alloc((len<<1) + 1);
+    len=mysql_real_escape_string(handle->connection, outString, inString, len);
+    Tcl_SetStringObj(Tcl_GetObjResult(interp), outString, len);
+    Tcl_Free(outString);
+  }
   return TCL_OK;
 }
 
@@ -864,7 +900,6 @@ DEFINE_CMD(Mysqltcl_Sel)
   static CONST char* selOptions[] = {"-list", "-flatlist", NULL};
   /* Warning !! no option number */
   int i,selOption=2,colCount;
-  char *val;
   
   if ((handle = mysql_prologue(interp, objc, objv, 3, 4, CL_CONN,
 			    "handle sel-query ?-list|-flatlist?")) == 0)
@@ -1297,6 +1332,55 @@ DEFINE_CMD(Mysqltcl_Info)
   return TCL_OK ;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Mysqltcl_BaseInfo
+ * Implements the mysqlinfo command:
+ * usage: mysqlbaseinfo option
+ *
+ */
+
+DEFINE_CMD(Mysqltcl_BaseInfo)
+{
+  int idx ;
+  Tcl_Obj *resList;
+  int i;
+  char **option;
+  static CONST char* MysqlInfoOpt[] =
+    {
+      "connectparameters", "clientversion", NULL
+    };
+  enum baseoption {
+    MYSQL_BINFO_CONNECT, MYSQL_BINFO_CLIENTVERSION
+  };
+
+  if (objc <2) {
+      Tcl_WrongNumArgs(interp, 3, objv, "connectparameters | clientversion");
+      return TCL_ERROR;
+  }  
+  if (Tcl_GetIndexFromObj(interp, objv[1], MysqlInfoOpt, "option",
+                          TCL_EXACT, &idx) != TCL_OK)
+    return TCL_ERROR;
+
+  /* First check the handle. Checking depends on the option. */
+  switch (idx) {
+  case MYSQL_BINFO_CONNECT:
+    option = (char **)MysqlConnectOpt;
+    resList = Tcl_NewListObj(0, NULL);
+    while (*option!=NULL) {
+      Tcl_ListObjAppendElement (interp, resList, Tcl_NewStringObj(*option,-1));
+      option++;
+    }
+    Tcl_SetObjResult(interp, resList);
+    break ;
+  case MYSQL_BINFO_CLIENTVERSION:
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(mysql_get_client_info(),-1));
+    break;
+  }
+  return TCL_OK ;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -1531,6 +1615,58 @@ DEFINE_CMD(Mysqltcl_InsertId)
   return TCL_OK;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Mysqltcl_Ping
+ *    usage: mysqlping handle
+ *    It can be used to check and refresh (reconnect after time out) the connection
+ *    Returns 0 if connection is OK
+ */
+
+DEFINE_CMD(Mysqltcl_Ping)
+{
+  MysqlTclHandle *handle;
+  
+  if ((handle = mysql_prologue(interp, objc, objv, 2, 2, CL_CONN,
+			    "handle")) == 0)
+    return TCL_ERROR;
+
+  Tcl_SetObjResult(interp, Tcl_NewBooleanObj(mysql_ping(handle->connection)==0));
+
+  return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Mysqltcl_Ping
+ *    usage: mysqlchangeuser handle user password database
+ *    It can be used to check and refresh (reconnect after time out) the connection
+ *    Returns 0 if connection is OK
+ */
+
+DEFINE_CMD(Mysqltcl_ChangeUser)
+{
+  MysqlTclHandle *handle;
+  char *user,*password,*database=NULL;
+  
+  if ((handle = mysql_prologue(interp, objc, objv, 4, 5, CL_CONN,
+			    "handle user password ?database?")) == 0)
+    return TCL_ERROR;
+
+  user = Tcl_GetStringFromObj(objv[2],NULL);
+  password = Tcl_GetStringFromObj(objv[3],NULL);
+  if (objc==5) {
+    database = Tcl_GetStringFromObj(objv[4],NULL);
+  }
+  if (mysql_change_user (handle->connection, user, password, database)!=0) {
+      mysql_server_confl (interp,objc,objv,handle->connection);
+      return TCL_ERROR;
+  }
+  return TCL_OK;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -1653,6 +1789,9 @@ int Mysqltcl_Init (interp)
   ADD_CMD(mysqlinsertid, Mysqltcl_InsertId);
   ADD_CMD(mysqlquery, Mysqltcl_Query);
   ADD_CMD(mysqlendquery, Mysqltcl_EndQuery);
+  ADD_CMD(mysqlbaseinfo, Mysqltcl_BaseInfo);
+  ADD_CMD(mysqlping, Mysqltcl_Ping);
+  ADD_CMD(mysqlchangeuser, Mysqltcl_ChangeUser);
 
   /* Initialize mysqlstatus global array. */
 

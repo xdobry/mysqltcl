@@ -103,8 +103,24 @@ Tcl_ExternalToUtfDString (writing) and Tcl_ExternalToUtf (reading) will be used
 by option binary the function Tcl_GetByteArrayFromObj and Tcl_NewByteArrayObj are used.
 If you want to manipulate binary date use -encoding binary. By handling textes set your
 special encoding that you want to use in your database. Consider what another system access the
-data base and what encoding they expect. It can usefull
+database and what encoding they expect. It can usefull
 to use -encoding utf-8. That is standard encoding in some linux distribution (RedHat 9).
+.TP
+.B -ssl \fIboolean
+.br
+Switch to SSL after handshake. Default ist  false
+.TP
+.B -compress \fIboolean
+.br
+Use compression protocol. Default ist false
+.TP
+.B -odbc \fIboolean
+.br
+The client is an ODBC client. This changes mysqld to be more ODBC-friendly. Default ist false
+.TP
+.B -noschema \fIboolean
+.br
+Don't allow the db_name.tbl_name.col_name syntax. This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs. This changes mysqld to be more ODBC-friendly. Default ist false
 .RE
 .TP
 .B mysqluse \fIhandle dbname\fR
@@ -463,6 +479,42 @@ is associated.
 The handle must be in use.
 .RE
 .TP 
+.B mysqlbaseinfo \fIoption\fR
+.br
+return information information that do not need handle.
+.RS
+.TP
+.B connectparameters
+.br
+return all supported connecting options
+.TP
+.B clientversion
+.br
+return the version of underlying MYSQL C-API library
+.TP
+.RE
+.sp
+.TP 
+.B mysqlping \fIhandle\fR
+.br
+Checks whether the connection to the server is working. If it has gone down, an automatic reconnection is attempted.
+.br
+This function can be used by clients that remain idle for a long while, to check whether the server has closed the connection and reconnect if necessary.
+.br
+Return True if server is alive
+.TP
+.br
+.B mysqlchangeuser \fIuser password ?database?\fR
+.br
+Changes the user and causes the database specified by database to become the default (current) database on the connection specified by mysql. In subsequent queries, this database is the default for table references that do not include an explicit database specifier.
+.br
+mysqlchangeuser fails unless the connected user can be authenticated or if he doesn't have permission to use the database. In this case the user and database are not changed
+.br
+if database parameter may be set were is no default database. 
+.br
+Cause Error if operation is not succesed
+.TP
+.br 
 .B mysqlresult \fIhandle option\fR
 .br
 Return information about the pending result.
@@ -558,11 +610,11 @@ connected.
 Returns the auto increment id of the last INSERT statement.
 .sp
 .TP 
-.B mysqlescape \fIstring\fR
+.B mysqlescape ?handle? \fIstring\fR
 .br
 Returns the content of \fIstring\fR, with all special characters escaped,
 so that it is suitable for use in an SQL statement. This is simpler (faster)
-than using a general \fBregexp\fR.
+than using a general \fBregexp\fR. If handle is specifed C-API function mysql_real_escape_string is used. This is the recommended usage bacaus in this case current character set is respected.
 .sp
 .SH "STATUS INFORMATION"
 .P

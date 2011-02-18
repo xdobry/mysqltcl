@@ -1,4 +1,4 @@
-set file libmysqltcl2.20
+set file libmysqltcl2.31
 
 if {[file exists ./${file}[info sharedlibextension]]} {
     load ./${file}[info sharedlibextension]
