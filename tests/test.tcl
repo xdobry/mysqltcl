@@ -8,10 +8,10 @@
 # >mysql -u root <test.sql
 # please adapt the parameters for mysqlconnect some lines above
 
-if {[file exists ./libmysqltcl2.11.so]} {
-    load ./libmysqltcl2.11.so
+if {[file exists ./libmysqltcl2.12.so]} {
+    load ./libmysqltcl2.12.so
 } else {
-    load ../libmysqltcl2.11.so
+    load ../libmysqltcl2.12.so
 }
 
 set handle [mysqlconnect -user root]

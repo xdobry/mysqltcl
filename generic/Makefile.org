@@ -8,7 +8,7 @@ LIBS=-L/usr/lib/mysql
 ALL:libmysqltcl.so 
 
 mysqltcl.o:mysqltcl.c
-	gcc -c -DVERSION=\"0.21\" mysqltcl.c ${INCLUDE} 
+	gcc -c -Wall -DVERSION=\"0.21\" mysqltcl.c ${INCLUDE} 
 
 libmysqltcl.so:mysqltcl.o
 	gcc  -fPIC -shared -o $@ $< ${LIBS} -lmysqlclient 

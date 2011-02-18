@@ -71,7 +71,6 @@ typedef struct MysqlTclHandle {
   int col_count ;                 /* Column count in result, if any. */
   int number;
   int isquery;
-  int refcounter;
 } MysqlTclHandle;
 
 /* one global Hash for mysql handles */
@@ -94,60 +93,6 @@ static char *MysqlHandlePrefix = "mysql";
 /* C variable corresponding to mysqlstatus(nullvalue) */
 static char *MysqlNullvalue = NULL ;
 #define MYSQL_NULLV_INIT ""
-
-/* Options to the 'info', 'result', 'col' combo commands. */
-     
-static char* MysqlDbOpt[] =
-{
-  "dbname", "dbname?", "tables", "host", "host?", "databases","info", NULL
-};
-#define MYSQL_INFNAME_OPT 0
-#define MYSQL_INFNAMEQ_OPT 1
-#define MYSQL_INFTABLES_OPT 2
-#define MYSQL_INFHOST_OPT 3
-#define MYSQL_INFHOSTQ_OPT 4
-#define MYSQL_INFLIST_OPT 5
-#define MYSQL_INFO 6
-
-static char* MysqlResultOpt[] =
-{
-  "rows", "rows?", "cols", "cols?", "current", "current?", NULL
-};
-#define MYSQL_RESROWS_OPT 0
-#define MYSQL_RESROWSQ_OPT 1
-#define MYSQL_RESCOLS_OPT 2
-#define MYSQL_RESCOLSQ_OPT 3
-#define MYSQL_RESCUR_OPT 4
-#define MYSQL_RESCURQ_OPT 5
-
-/* Column info definitions. */
-
-static char* MysqlColkey[] =
-{
-  "table", "name", "type", "length", "prim_key", "non_null", "numeric", "decimals", NULL
-};
-
-#define MYSQL_COL_TABLE_K 0
-#define MYSQL_COL_NAME_K 1
-#define MYSQL_COL_TYPE_K 2
-#define MYSQL_COL_LENGTH_K 3
-#define MYSQL_COL_PRIMKEY_K 4
-#define MYSQL_COL_NONNULL_K 5
-#define MYSQL_COL_NUMERIC_K 6
-#define MYSQL_COL_DECIMALS_K 7
-
-/* Options to the 'connect' command. */
-     
-static char* MysqlConnectOpt[] =
-{
-  "-host", "-user", "-password", "-db", "-port", "-socket", NULL
-};
-#define MYSQL_CONNHOST_OPT 0
-#define MYSQL_CONNUSER_OPT 1
-#define MYSQL_CONNPASSWORD_OPT 2
-#define MYSQL_CONNDB_OPT 3
-#define MYSQL_CONNPORT_OPT 4
-#define MYSQL_CONNSOCKET_OPT 5
 
 /* Check Level for mysql_prologue */
 #define CL_PLAIN 0
@@ -196,8 +141,6 @@ MysqlHandleSet(interp, objPtr)
 {
     Tcl_ObjType *oldTypePtr = objPtr->typePtr;
     char *string;
-    int length;
-    register char *p;
     MysqlTclHandle *handle;
     Tcl_HashEntry *entryPtr;
 
@@ -218,18 +161,17 @@ MysqlHandleSet(interp, objPtr)
     
     objPtr->internalRep.otherValuePtr = (MysqlTclHandle *) handle;
     objPtr->typePtr = &mysqlHandleType;
-    handle->refcounter++;
+    Tcl_Preserve((char *)handle);
+    // printf("p set obj handle %i %x\n",handle->isquery,handle);
+
     return TCL_OK;
 }
 static void
 MysqlHandleFree(Tcl_Obj *obj)
 {
   MysqlTclHandle *handle = (MysqlTclHandle *)obj->internalRep.otherValuePtr;
-  handle->refcounter--;
-  /*
-  fprintf (stderr,"Free handle counter %i handle %p\n",handle->refcounter,handle);
-  */
-  if (handle->connection==NULL && handle->refcounter<=0) Tcl_Free((char *)handle);
+  Tcl_Release((char *)handle);
+  // printf("r free obj handle %i %x\n",handle->isquery,handle);
 }
 
 static int
@@ -238,13 +180,9 @@ GetHandleFromObj(interp, objPtr, handlePtr)
     register Tcl_Obj *objPtr;
     register MysqlTclHandle **handlePtr;
 {
-    int result;
     if (Tcl_ConvertToType (interp, objPtr, &mysqlHandleType) != TCL_OK)
         return TCL_ERROR;
     *handlePtr = (MysqlTclHandle *)objPtr->internalRep.otherValuePtr;
-    /*
-    fprintf (stderr,"Geting handle form Obj counter %i handle %p\n",(*handlePtr)->refcounter,*handlePtr);
-    */
     return TCL_OK;
 }
 
@@ -269,11 +207,11 @@ Tcl_NewHandleObj(handle)
     Tcl_SetHashValue(entryPtr,handle);     
   
     objPtr->internalRep.otherValuePtr = handle;
-    handle->refcounter++;
-    /*
-    fprintf (stderr,"New Tcl_Obj handle counter %i handle %p\n",handle->refcounter,handle);
-    */
     objPtr->typePtr = &mysqlHandleType;
+
+    Tcl_Preserve((char *)handle);  
+    // printf("p new obj handle %i %x\n",handle->isquery,handle);
+
     return objPtr;
 }
 
@@ -377,7 +315,6 @@ static int
 mysql_server_confl (Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL * connection)
 {
   char* mysql_errorMsg;
-  char buf[10];
 
   mysql_errorMsg = mysql_error(connection);
 
@@ -469,7 +406,9 @@ static MysqlTclHandle *createMysqlHandle()
   handle->res_count = 0 ;
   handle->col_count = 0 ;
   handle->isquery = 0;
-  handle->refcounter = 0;
+
+  //printf("p create handle %i %x\n",handle->isquery,handle);
+
   /* not MT-safe, static  */
   handle->number=HandleNum++;
   return handle;
@@ -483,12 +422,16 @@ static MysqlTclHandle *createQueryHandleFrom(MysqlTclHandle *handle)
   number = qhandle->number;
   if (!qhandle) return qhandle;
   memcpy(qhandle,handle,sizeof(MysqlTclHandle));
-  qhandle->refcounter = 0;
   qhandle->isquery=1;
   qhandle->number=number;
   return qhandle;
 }
-
+static void closeHandle(MysqlTclHandle *handle)
+{
+  handle->connection = (MYSQL *)0;
+  // printf("r close handle %i %x\n",handle->isquery,handle);
+  Tcl_EventuallyFree((char *)handle,TCL_DYNAMIC);
+}
 
 /*
  *----------------------------------------------------------------------
@@ -516,8 +459,6 @@ mysql_prologue (interp, objc, objv, req_min_args, req_max_args, check_level, usa
      int check_level;
      char *usage_msg;
 {
-  MysqlTclHandle* hand;
-
   /* Check number of args. */
   if (objc < req_min_args || objc > req_max_args) {
       Tcl_WrongNumArgs(interp, 1, objv, usage_msg);
@@ -554,8 +495,16 @@ mysql_colinfo (interp,objc,objv,fld,keyw)
 {
   char buf[MYSQL_SMALL_SIZE];
   int idx ;
-  
-  if (Tcl_GetIndexFromObj(interp, keyw, MysqlColkey, "option",
+
+  static CONST char* MysqlColkey[] =
+    {
+      "table", "name", "type", "length", "prim_key", "non_null", "numeric", "decimals", NULL
+    };
+  enum coloptions {
+    MYSQL_COL_TABLE_K, MYSQL_COL_NAME_K, MYSQL_COL_TYPE_K, MYSQL_COL_LENGTH_K, MYSQL_COL_PRIMKEY_K,
+    MYSQL_COL_NONNULL_K, MYSQL_COL_NUMERIC_K, MYSQL_COL_DECIMALS_K};
+
+  if (Tcl_GetIndexFromObj(interp, keyw, (char **)MysqlColkey, "option",
                           TCL_EXACT, &idx) != TCL_OK)
     return NULL;
 
@@ -599,7 +548,7 @@ mysql_colinfo (interp,objc,objv,fld,keyw)
 	case FIELD_TYPE_NEWDATE:
 	  return Tcl_NewStringObj("new date", -1);
 	case FIELD_TYPE_ENUM:
-	  return Tcl_NewStringObj("enum", -1); /* fyll på??? */
+	  return Tcl_NewStringObj("enum", -1); /* fyll på¿¿? */
 	case FIELD_TYPE_SET: /* samma */
 	  return Tcl_NewStringObj("set", -1);
 	case FIELD_TYPE_TINY_BLOB:
@@ -665,8 +614,7 @@ Mysqltcl_Kill (clientData)
       mysql_free_result (handle->result) ;
 
     mysql_close (handle->connection);
-
-    if (handle->refcounter==0) Tcl_Free((char *)handle);
+    closeHandle(handle);
   }
   if (wasdeleted) {
     Tcl_DeleteHashTable(&handleTable);
@@ -702,6 +650,14 @@ DEFINE_CMD(Mysqltcl_Connect)
   MysqlTclHandle *handle;
   const char *groupname = "mysqltcl";
 
+  static CONST char* MysqlConnectOpt[] =
+    {
+      "-host", "-user", "-password", "-db", "-port", "-socket", NULL
+    };
+  enum connectoption {
+    MYSQL_CONNHOST_OPT, MYSQL_CONNUSER_OPT, MYSQL_CONNPASSWORD_OPT, 
+    MYSQL_CONNDB_OPT, MYSQL_CONNPORT_OPT, MYSQL_CONNSOCKET_OPT
+  };
   if (!(objc & 1) || 
     objc>(sizeof(MysqlConnectOpt)/sizeof(MysqlConnectOpt[0]-1)*2+1)) {
     Tcl_WrongNumArgs(interp, 1, objv, "[-user xxx] [-db mysql] [-port 3306] [-host localhost] [-socket sock] [-password pass]");
@@ -709,7 +665,7 @@ DEFINE_CMD(Mysqltcl_Connect)
   }
               
   for (i = 1; i < objc; i++) {
-    if (Tcl_GetIndexFromObj(interp, objv[i], MysqlConnectOpt, "option",
+    if (Tcl_GetIndexFromObj(interp, objv[i], (char **)MysqlConnectOpt, "option",
                           0, &idx) != TCL_OK)
     return TCL_ERROR;
     
@@ -754,8 +710,7 @@ DEFINE_CMD(Mysqltcl_Connect)
                                 password, db, port, socket, 0)) {
       mysql_server_confl (interp,objc,objv,handle->connection);
       mysql_close (handle->connection);
-      handle->connection = 0;
-      Tcl_Free((char *)handle);
+      closeHandle(handle);
       return TCL_ERROR;
   }
 
@@ -858,8 +813,7 @@ DEFINE_CMD(Mysqltcl_Escape)
 
 DEFINE_CMD(Mysqltcl_Sel)
 {
-  Tcl_Obj *res, *resList, *listElem;
-  char *query;
+  Tcl_Obj *res, *resList;
   MYSQL_ROW row;
   MysqlTclHandle *handle;
   unsigned long *lengths;
@@ -873,7 +827,7 @@ DEFINE_CMD(Mysqltcl_Sel)
 
 
   if (objc==4) {
-    if (Tcl_GetIndexFromObj(interp, objv[3], selOptions, "option",
+    if (Tcl_GetIndexFromObj(interp, objv[3], (char **)selOptions, "option",
 			    TCL_EXACT, &selOption) != TCL_OK)
       return TCL_ERROR;
   }
@@ -898,12 +852,10 @@ DEFINE_CMD(Mysqltcl_Sel)
     case 0: /* -list */
       while ((row = mysql_fetch_row (handle->result)) != NULL) {
 	resList = Tcl_NewListObj(0, NULL);
-	// fprintf(stderr,"list ref %d\n",resList->refCount);
 	lengths = mysql_fetch_lengths(handle->result);
 	for (i=0; i< colCount; i++, row++) {
 	  Tcl_ListObjAppendElement (interp, resList,getRowCellAsObject(row,lengths[i]));
 	}
-	// fprintf(stderr,"list ref2 %d\n",resList->refCount);
 	Tcl_ListObjAppendElement (interp, res, resList);
       }  
       break;
@@ -966,11 +918,11 @@ DEFINE_CMD(Mysqltcl_EndQuery)
     handle->result = NULL ;
   }
   if (handle->isquery) {
-    handle->connection = (MYSQL *)0;
     entryPtr = Tcl_FindHashEntry(&handleTable,Tcl_GetStringFromObj(objv[1],NULL));
     if (entryPtr) {
       Tcl_DeleteHashEntry(entryPtr);
-    } 
+    }
+    closeHandle(handle);
   }
   return TCL_OK;
 }
@@ -991,8 +943,6 @@ DEFINE_CMD(Mysqltcl_EndQuery)
 DEFINE_CMD(Mysqltcl_Exec)
 {
   MysqlTclHandle *handle;
-  char *query;
-  int queryLen;
   int affected;
 
   if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_CONN,
@@ -1031,7 +981,6 @@ DEFINE_CMD(Mysqltcl_Next)
   int idx ;
   MYSQL_ROW row ;
   Tcl_Obj *resList;
-  Tcl_Obj *listElem;
   unsigned long *lengths;
 
   if ((handle = mysql_prologue(interp, objc, objv, 2, 2, CL_RES,
@@ -1127,7 +1076,6 @@ DEFINE_CMD(Mysqltcl_Map)
   Tcl_Obj** listObjv ;
   MYSQL_ROW row ;
   int *val;
-  Tcl_Obj *listElem;
   unsigned long *lengths;
   
   
@@ -1212,20 +1160,28 @@ DEFINE_CMD(Mysqltcl_Info)
   MYSQL_ROW row ;
   char* val ;
   Tcl_Obj *resList;
+  static CONST char* MysqlDbOpt[] =
+    {
+      "dbname", "dbname?", "tables", "host", "host?", "databases","info", NULL
+    };
+  enum dboption {
+    MYSQL_INFNAME_OPT, MYSQL_INFNAMEQ_OPT, MYSQL_INFTABLES_OPT,
+    MYSQL_INFHOST_OPT, MYSQL_INFHOSTQ_OPT, MYSQL_INFLIST_OPT, MYSQL_INFO
+  };
   
   /* We can't fully check the handle at this stage. */
   if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_PLAIN,
 			    "handle option")) == 0)
     return TCL_ERROR;
 
-  if (Tcl_GetIndexFromObj(interp, objv[2], MysqlDbOpt, "option",
+  if (Tcl_GetIndexFromObj(interp, objv[2], (char **)MysqlDbOpt, "option",
                           TCL_EXACT, &idx) != TCL_OK)
     return TCL_ERROR;
 
   /* First check the handle. Checking depends on the option. */
   switch (idx) {
   case MYSQL_INFNAMEQ_OPT:
-    if (handle = get_handle(interp,objc,objv,CL_CONN)) {
+    if ((handle = get_handle(interp,objc,objv,CL_CONN))!=NULL) {
       if (handle->database[0] == '\0')
 	return TCL_OK ; /* Return empty string if no current db. */
     }
@@ -1310,13 +1266,20 @@ DEFINE_CMD(Mysqltcl_Result)
 {
   int idx ;
   MysqlTclHandle *handle;
-
+  static CONST char* MysqlResultOpt[] =
+    {
+     "rows", "rows?", "cols", "cols?", "current", "current?", NULL
+    };
+  enum resultoption {
+    MYSQL_RESROWS_OPT, MYSQL_RESROWSQ_OPT, MYSQL_RESCOLS_OPT, 
+    MYSQL_RESCOLSQ_OPT, MYSQL_RESCUR_OPT, MYSQL_RESCURQ_OPT
+  };
   /* We can't fully check the handle at this stage. */
   if ((handle = mysql_prologue(interp, objc, objv, 3, 3, CL_PLAIN,
 			    " handle option")) == 0)
     return TCL_ERROR;
 
-  if (Tcl_GetIndexFromObj(interp, objv[2], MysqlResultOpt, "option",
+  if (Tcl_GetIndexFromObj(interp, objv[2], (char **)MysqlResultOpt, "option",
                           TCL_EXACT, &idx) != TCL_OK)
     return TCL_ERROR;
 
@@ -1579,21 +1542,16 @@ DEFINE_CMD(Mysqltcl_Close)
 	  Tcl_DeleteHashEntry(entryPtr);
 	  if (thandle->result != NULL)
 	    mysql_free_result (thandle->result);
-	  thandle->connection = (MYSQL *)0;
-	  if (thandle->refcounter==0) Tcl_Free((char *)thandle);
+	  closeHandle(thandle);
 	}
       }
       if (qfound!=16) break;
       qfound = 0;
     }
   }
-
-  handle->connection = (MYSQL *)0;
   entryPtr = Tcl_FindHashEntry(&handleTable,Tcl_GetStringFromObj(objv[1],NULL));
   if (entryPtr) Tcl_DeleteHashEntry(entryPtr);
-  /* The Handle will be freed by deleting Tcl_Obj see MysqlHandleFree
-     Tcl_Free((char *)handle);
-  */
+  closeHandle(handle);
   return TCL_OK;
 }
 

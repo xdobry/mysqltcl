@@ -1,7 +1,18 @@
+Release 2.12
+-- refactoring (options for GetIndexFromObject are defined localy like in Tcl-core)
+-- removing unused variables
+-- some casts to avoid warnings messages
+-- bug in reading options from my.cnf was removed (It have not work earlier)
+-- use Tcl_Preserve and Tcl_Release instead of internal reference count
+Release 2.11
+-- memory leak removed
+Release 2.1
+-- new commands mysqlquerry mysqlendquerry
+-- refactoring
 Release 2.0rc14
 -- using mysql_option to read option group mysqltcl from my.cnf file
 
-Release 2.0	
+Release 2.0
 -- unlimitet number of connections 
 -- Support of UNI-coded strings (All Stings are converted 
    to external representation before sending to database) 
