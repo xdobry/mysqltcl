@@ -36,7 +36,7 @@
 #ifdef _WINDOWS
    #include <windows.h>
    #define PACKAGE "mysqltcl"
-   #define PACKAGE_VERSION "3.04"
+   #define PACKAGE_VERSION "3.051"
 #endif
 
 #include <tcl.h>
@@ -728,13 +728,14 @@ static CONST char* MysqlConnectOpt[] =
       "-multistatement","-multiresult",
 #endif
       "-localfiles","-ignorespace","-foundrows","-interactive","-sslkey","-sslcert",
-      "-sslca","-sslcapath","-sslciphers",NULL
+      "-sslca","-sslcapath","-sslciphers","-reconnect", NULL
     };
 
 static int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
   MysqltclState *statePtr = (MysqltclState *)clientData; 
   int        i, idx;
+  int        mysql_options_reconnect = 0;
   char *hostname = NULL;
   char *user = NULL;
   char *password = NULL;
@@ -765,12 +766,12 @@ static int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc,
 #endif
     MYSQL_LOCALFILES_OPT,MYSQL_IGNORESPACE_OPT,
     MYSQL_FOUNDROWS_OPT,MYSQL_INTERACTIVE_OPT,MYSQL_SSLKEY_OPT,MYSQL_SSLCERT_OPT,
-    MYSQL_SSLCA_OPT,MYSQL_SSLCAPATH_OPT,MYSQL_SSLCIPHERS_OPT
+    MYSQL_SSLCA_OPT,MYSQL_SSLCAPATH_OPT,MYSQL_SSLCIPHERS_OPT, MYSQL_RECONNECT_OPT
   };
 
   if (!(objc & 1) || 
     objc>(sizeof(MysqlConnectOpt)/sizeof(MysqlConnectOpt[0]-1)*2+1)) {
-    Tcl_WrongNumArgs(interp, 1, objv, "[-user xxx] [-db mysql] [-port 3306] [-host localhost] [-socket sock] [-password pass] [-encoding encoding] [-ssl boolean] [-compress boolean] [-odbc boolean] [-noschema boolean]"
+    Tcl_WrongNumArgs(interp, 1, objv, "[-user xxx] [-db mysql] [-port 3306] [-host localhost] [-socket sock] [-password pass] [-encoding encoding] [-ssl boolean] [-compress boolean] [-odbc boolean] [-noschema boolean] [-reconnect boolean]"
     );
 	return TCL_ERROR;
   }
@@ -885,6 +886,12 @@ static int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc,
     case MYSQL_SSLCIPHERS_OPT:
       sslcipher = Tcl_GetStringFromObj(objv[++i],NULL);
       break;
+    case MYSQL_RECONNECT_OPT:
+      if (Tcl_GetBooleanFromObj(interp,objv[++i],&booleanflag) != TCL_OK )
+	return TCL_ERROR;
+      if (booleanflag)
+        mysql_options_reconnect = 1;
+      break;
     default:
       return mysql_prim_confl(interp,objc,objv,"Weirdness in options");            
     }
@@ -902,6 +909,11 @@ static int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc,
 
   /* the function below caused in version pre 3.23.50 segmentation fault */
 #if (MYSQL_VERSION_ID>=32350)
+  if(mysql_options_reconnect)
+  {
+      my_bool reconnect = 1;
+      mysql_options(handle->connection, MYSQL_OPT_RECONNECT, &reconnect);
+  }
   mysql_options(handle->connection,MYSQL_READ_DEFAULT_GROUP,groupname);
 #endif
 #if (MYSQL_VERSION_ID >= 40107)
@@ -2245,7 +2257,7 @@ static int Mysqltcl_NewNull(ClientData clientData, Tcl_Interp *interp, int objc,
 #if (MYSQL_VERSION_ID >= 40107)
 static CONST char* MysqlServerOpt[] =
     {
-      "-multi_statment_on", "-multi_statment_off",NULL
+      "-multi_statment_on", "-multi_statment_off", "-auto_reconnect_on", "-auto_reconnect_off", NULL
     };
 #endif
  
@@ -2755,3 +2767,4 @@ int Mysqltcl_SafeInit(interp)
 {
   return Mysqltcl_Init(interp);
 }
+
