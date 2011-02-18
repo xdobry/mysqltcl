@@ -50,6 +50,34 @@ mysqlmap $handle {nr name} {
     set tempr [list $nr $name]
     puts  [format  "nr %16s  name:%s"  $nr $name]
 }
+# Test receive function
+# this function do not cache result on client but
+# receice it directly from server
+# this is the fasted way to process queries by mysqltcl
+
+mysqlreceive $handle {select MatrNr,Name from Student order by Name} {nr name} {
+    puts  [format  "nr %16s  name:%s"  $nr $name]
+}
+
+set count 0
+mysqlreceive $handle {select MatrNr,Name from Student order by Name} {nr name} {
+    puts  [format  "nr %16s  name:%s"  $nr $name]
+    if ($count>0) break
+    incr count
+}
+
+# with error
+set erg [catch {
+    mysqlreceive $handle {select MatrNr,Name from Student order by Name} {nr name} {
+	puts  [format  "nr %16s  name:%s"  $nr $name]
+	error "Test Error"
+    }
+} ]
+if {!$erg} {
+  error "await error by receive body"
+} else {
+  puts $errorInfo
+}
 
 # Test query function
 puts "Testing mysqltclquery"

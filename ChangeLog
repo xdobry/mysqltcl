@@ -1,3 +1,6 @@
+Release 2.51
+-- new command mysqlreceive that use mysql_use_result and do not cache result on client machine
+-- the command mysqsel with option -list and -flatlist also uses mysql_use_result for better perfomance
 Release 2.50
 -- bug in handle managment by subinterpreters was removed be refactoring
 Release 2.41

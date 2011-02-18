@@ -317,6 +317,81 @@ Mysqlmap raises a Tcl error if there is no pending result for
 there are columns in the pending result.
 .sp
 .TP
+.B mysqlreceive \fIhandle sql-statmenet binding-list script\fR
+.br
+This command works the same way as the command mysqtclmap but
+it do not need leading mysqlsel command.
+The main difference is internal using of mysql client library.
+This command use mysql_use_result from C-API that do not
+store result on client but try to receive the rows directly
+from server.
+There is also no client cache.
+This command can be faster as using of mysqlsel and by
+very big resultset will not overload client machine.
+The scipt shoul process the result immadiatly because
+it can block table (or tables) for another clients.
+
+Iterate a script over the rows of the pending result.
+Mysqlmap may consume all rows or only some of the rows of the pending
+result.
+Any remaining rows may be obtained by further mysqlnext or mysqlmap
+commands.
+.sp
+\fIHandle\fR must be a handle with a pending result from a previous
+mysqlsel command.
+\fIBinding-list\fR must be a list of one or more variable names.
+\fIScript\fR must be a Tcl script.
+It may be empty, but usually it contains one or more commands.
+.sp
+Mysqlmap processes one row at a time from the pending result.
+For each row the column values are bound to the variables in the
+binding list, then the script is executed.
+Binding is strictly positional.
+The first variable in the binding list is bound to the first column of
+the row, and so on.
+The variables are created in the current context (if they do not
+already exist).
+A variable name beginning with a hyphen is not bound; it serves as a
+placeholder in the binding list.
+If there are more columns than variables the extra columns are
+ignored.
+.sp
+The mysqlmap command is similar to an ordinary \fBforeach\fR.
+A \fBforeach\fR iterates over the elements of a list, mysqlmap
+iterates over the rows of a pending result.
+In both cases iteration is affected by \fBbreak\fR and \fBcontinue\fR
+Tcl commands.
+The binding list variables retain their last values after the command
+has completed.
+.sp
+A simple example follows.
+Assume $db is a handle in use.\fB
+.sp
+	mysqlsel $db {select lname, fname, area, phone from friends
+.br
+		order by lname, fname}
+.br
+	mysqlmap $db {ln fn - phone} {
+.br
+		if {$phone == {}} continue
+.br
+		puts [format "%16s %-8s %s" $ln $fn $phone]
+.br
+	}\fR
+.br
+.sp
+The mysqlsel command gets and sorts all rows from table \fIfriends\fR.
+The mysqlmap command is used to format and print the result in a way
+suitable for a phone list.
+For demonstration purposes one of the columns (area) is not used.
+The script begins by skipping over rows which have no phone number.
+The second command in the script formats and prints values from the row.
+.sp
+Mysqlmap raises a Tcl error if there is no pending result for
+\fIhandle\fR, or if \fIbinding-list\fR contains more variables than
+there are columns in the pending result.
+.sp
+.TP
 .B mysqlseek \fIhandle row-index\fR
 .br
 Moves the current position among the rows in the pending result.
