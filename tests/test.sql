@@ -14,4 +14,10 @@ INSERT INTO Student VALUES (6,'Grechuta',3);
 INSERT INTO Student VALUES (7,'Gorniak',1);
 INSERT INTO Student VALUES (8,'Niemen',3);
 INSERT INTO Student VALUES (9,'Bem',5);
+
+CREATE TABLE Binarytest (
+  id int(11) DEFAULT '0' NOT NULL auto_increment,
+  data blob,
+  PRIMARY KEY (id)
+);
  

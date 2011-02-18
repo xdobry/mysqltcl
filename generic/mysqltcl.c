@@ -29,7 +29,7 @@
 #ifdef _WINDOWS
    #include <windows.h>
    #define PACKAGE "mysqltcl"
-   #define VERSION "2.1"
+   #define VERSION "2.14"
 #endif
 
 #include <tcl.h>
