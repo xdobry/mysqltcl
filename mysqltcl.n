@@ -17,7 +17,7 @@
 '\" OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN
 '\" CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 '\" 
-'\" $Id: msqltcl.n,v 1.50 1995/06/06 14:25:25 hs Rel $
+'\" $Id: mysqltcl.n,v 1.1.1.1 2002/02/15 18:21:17 artur Exp $
 '\"
 '\" Updates by Tobias Ritzau 1998-03-18
 '\" Replaced all mysql by mysql
@@ -56,6 +56,8 @@ Connect to a mysql server.
 A handle is returned which should be used in all other mysqltcl
 commands using this connection.
 mysqlconnect raises a Tcl error if the connection fails.
+mysqlconnect read first the options from my.cnf file group mysqltcl.
+See mysql documentation chapter "options files".
 Possible connection options are:
 .RS
 .TP
@@ -165,6 +167,8 @@ is executed, but the result is discarded.
 No Tcl error is generated.
 This amounts to a (potentially costly) no-op.
 Use the mysqlsel command for SELECT statements.
+.sp
+mysqlexec return the number of affected rows (DELETE, UPDATE)
 .sp
 .TP
 .B mysqlnext \fIhandle\fR
@@ -314,6 +318,14 @@ Return the string ``1'' if the column is non-null; otherwise ``0''.
 .br
 Return the string ``1'' if the column is part of the primary key;
 otherwise ``0''.
+.TP
+.B numeric
+.br
+Return the string ``1'' if the column is numeric; otherwise ``0''.
+.TP
+.B decimals
+.br
+Return the string ``1'' if the column is non-null; otherwise ``0''.
 .RE
 .sp
 The three forms of this command generate their result in a
@@ -357,6 +369,13 @@ It could alternatively specify the table name explicitly.\fB
 Return various database information depending on the \fIoption\fR.
 The option must be one of the following keywords.
 .RS
+.TP
+.B info
+.br
+Return a String with information about last operation.
+"Records: 3 Duplicates: 0 Warnings: 0" by INSERT or 
+"Rows matched: 40 Changed: 40 Warnings: 0" by UPDATE statements
+(read the manual for mysql_info in mysql C API documentation) 
 .TP
 .B databases
 .br
@@ -553,7 +572,7 @@ MySQLTcl is derived from a patch of msql by Hakan Soderstrom (hs@soderstrom.se),
 S-12242 Enskede, Sweden.
 msql is derived from Sybtcl by Tom Poindexter (tpoindex@nyx.cs.du.edu).
 .sp
-$Revision: 1.50 $
+$Revision: 1.1.1.1 $
 
 
 
