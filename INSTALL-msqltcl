@@ -1,0 +1,150 @@
+-------------------------------------------
+Copyright (c) 1994, 1995 Hakan Soderstrom and Tom Poindexter
+Additional details at end of this file.
+-------------------------------------------
+
+
+MSQLTCL INSTALLATION
+
+(1) Install Tcl/Tk according to its installation instructions.
+
+(2) Install mSQL according to its installation instructions.
+
+(3) The msqltcl distribution comes in a file called
+msqltcl-X.Y.tar.gz, where X.Y is the release number. cd to a directory
+under which you want the msqltcl directory to be created. Then,
+
+   gzcat msqltcl-X.Y.tar.gz | tar xvf -
+
+This will create a new directory called msqltcl-X.Y in the current
+directory and unpack the msqltcl source files in the new directory.
+
+cd into the new directory.
+
+The next step depends on whether you have other Tcl/Tk extensions to
+integrate. The two standard options that come with msqltcl are
+
+   (a) plain Tcl/Tk
+
+   (b) add extended Tcl (tclX/tkX)
+
+The third option,
+
+   (c) Tcl/Tk with an arbitrary set of extensions, requires
+       more hands-on activity on your side.
+
+(3.a: Plain Tcl/Tk; you have no other Tcl/Tk extensions.)
+Edit the Makefile configuration definitions. You may ignore the
+section containing tclX/tkX definitions. In the same directory, enter
+one of the following commands, depending on your version of Tcl/Tk,
+
+-- Tcl pre-7.4, Tk pre-4.0:
+
+   make w/tcl
+
+-- Tcl 7.4, Tk 4.0 (betas):
+
+   make w/new-tcl
+
+This should create two executables: msqltcl and msqlwish.
+
+(3.b: Add extended Tcl, tclX/tkX.)
+You must first install tclX/tkX according to its installation
+instruction.
+
+Edit the Makefile configuration definitions, including the section
+containing tclX/tkX definitions. In the same directory, enter one of
+the following commands, depending on your version of Tcl/Tk,
+
+-- Tcl pre-7.4, Tk pre-4.0:, TclX pre-7.4:
+
+   make w/tclX
+
+-- Tcl 7.4, Tk 4.0, TclX 7.4 (betas):
+
+   make w/new-tclX
+
+This should create two executables: msqltcl and msqlwish.
+
+(3.c: An arbitrary set of Tcl/Tk extensions should be integrated.)
+In this case I guess you already have some experience with Tcl
+extensions.
+
+Still edit what's obvious in the msqltcl Makefile configuration
+definitions.
+
+What I usually do is to compile the various extensions in order to
+have them create their libraries. Some insist on making executable
+interpreters, and I don't stop them, but rather delete unwanted
+interpreters afterwards. Then I collect all initializations into one
+central 'tclAppInit.c' and 'tkAppInit.c' (or 'tclXAppInit.c' and
+'tkXAppInit.c' if tclX/tkX is involved).
+
+Either put the two AppInit files in the msqltcl directory, or
+somewhere else.  Make sure the msqltcl Makefile to reflects reality,
+and you might be able to use it.
+
+In the msqltcl Makefile: Add to the include path, if required by the
+AppInits. Add the other extension libraries to the list of libraries
+required to link Tcl and Tk. Also add any necessary object
+files. (Some extensions, like msqltcl, don't create a library, but
+only an object file.) Then a 'make w/tcl' or 'make w/tclX', whichever
+is appropriate, should create the executable interpreters.
+
+Or you may prefer to do it in a completely different way. After all,
+msqltcl consists of just a single C source file, so it's easy to
+handle.
+
+Sorry if this is too sketchy, but it is a matter of taste how Tcl
+extensions are handled, and taste varies a great deal in this respect.
+
+
+MMON (MINI-MONITOR) INSTALLATION
+
+Please note that this version of mmon does not work with Tk 4.0. A new
+version will soon be released.
+
+Also note that mmon requires TclX. After compiling with 'make w/tclX'
+you should be able to run mmon with the following command,
+
+   msqlwish -f mmon &
+
+
+DOCUMENTATION
+
+The msqltcl man page is in file 'msqltcl.n'. There is no automatic
+installation for it. A PostScript version is in 'msqltcl.ps', an ascii
+version in 'msqltcl.doc'.
+
+mmon has online help, but no man page.
+
+
+AUTHOR
+
+Hakan Soderstrom, hs@soderstrom.se
+Affiliation: Soderstrom Programvaruverkstad AB, Bandhagsvagen 51,
+S-12242 Enskede, Sweden.
+
+
+COPYRIGHT & LICENSE
+
+Copyright (c) 1994, 1995 Hakan Soderstrom, Enskede, Sweden
+and Tom Poindexter, Denver, Colorado
+
+Permission to use, copy, modify, distribute, and sell this software
+and its documentation for any purpose is hereby granted without fee,
+provided that the above copyright notice and this permission notice
+appear in all copies of the software and related documentation.
+
+THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
+EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
+WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+IN NO EVENT SHALL HAKAN SODERSTROM OR SODERSTROM PROGRAMVARUVERKSTAD
+AB BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL
+DAMAGES OF ANY KIND, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER OR NOT ADVISED OF THE POSSIBILITY
+OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+$Revision: 1.50 $
