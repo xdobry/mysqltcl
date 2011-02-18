@@ -35,9 +35,9 @@ AC_SUBST(CONFIGDIR)
 
 PACKAGE=mysqltcl
 
-MAJOR_VERSION=2
-MINOR_VERSION=5
-PATCHLEVEL=1
+MAJOR_VERSION=3
+MINOR_VERSION=0
+PATCHLEVEL=0
 
 VERSION=${MAJOR_VERSION}.${MINOR_VERSION}${PATCHLEVEL}
 NODOT_VERSION=${MAJOR_VERSION}${MINOR_VERSION}
@@ -194,15 +194,15 @@ AC_ARG_WITH(mysql-lib,[  --with-mysql-lib=DIR	Mysql libraries are in DIR],
 	MYSQL_LIB_DIR=$withval, MYSQL_LIB_DIR="/usr/lib/mysql")
 MYSQL_INCLUDES="-I$MYSQL_INC_DIR"
 
-if test ! -f $MSQL_LIB_DIR/libmysqlclient${SHLIB_SUFFIX} -a -f /usr/lib/libmysqlclient${SHLIB_SUFFIX}; then
-   MYSQL_LIB_DIR=/usr/lib
-fi
 
 AC_ARG_ENABLE(mysqlstatic, [  --enable-mysqlstatic      link static with libmysqlclient.a], [tcl_ok=$enableval], [tcl_ok=$1])
 
 if test "$tcl_ok" = "yes"; then
    LIBS="${LIBS} ${MYSQL_LIB_DIR}/libmysqlclient.a -lz -lcrypt -lnsl -lm"
 else
+   if test ! -f $MSQL_LIB_DIR/libmysqlclient${SHLIB_SUFFIX} -a -f /usr/lib/libmysqlclient${SHLIB_SUFFIX}; then
+      MYSQL_LIB_DIR=/usr/lib
+   fi
    MYSQL_LIBS="-L$MYSQL_LIB_DIR -lmysqlclient"
    if test ! "$MYSQL_LIB_DIR" = ""; then
      LIBMYSQL="libmysqclient${SHLIB_SUFFIX}"
@@ -220,8 +220,14 @@ if test ! -f ${MYSQL_INC_DIR}/mysql.h ; then
 fi
 AC_MSG_RESULT([yes])
 AC_MSG_CHECKING([for libmysqlclient lib])
-if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient${SHLIB_SUFFIX} ; then
-   AC_MSG_ERROR(Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use -with-mysql-lib=?)
+if test "$tcl_ok" = "yes"; then
+   if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient.a ; then
+   	AC_MSG_ERROR(Cannot find libmysqlclient.a in $MYSQL_LIB_DIR use -with-mysql-lib=?)
+   fi
+else 
+   if test ! -f ${MYSQL_LIB_DIR}/libmysqlclient${SHLIB_SUFFIX} ; then
+   	AC_MSG_ERROR(Cannot find libmysqlclient${SHLIB_SUFFIX} in $MYSQL_LIB_DIR use -with-mysql-lib=?)
+   fi
 fi
 AC_MSG_RESULT([yes])
 

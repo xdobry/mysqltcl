@@ -1,132 +1,64 @@
-'\"
-'\" Generated from file 'mysqltcl.man' by tcllib/doctools with format 'nroff'
-'\"
-'\" -*- tcl -*- mysqltcl manpage
-.so man.macros
-.TH "mysqltcl" n 3.0  ""
-.BS
-.SH "NAME"
-mysqltcl \- MySQL server access commands for Tcl
-'\"
-'\" Copyright (c) 1994, 1995 Hakan Soderstrom and Tom Poindexter
-'\" Permission to use, copy, modify, distribute, and sell this software
-'\" and its documentation for any purpose is hereby granted without fee,
-'\" provided that the above copyright notice and this permission notice
-'\" appear in all copies of the software and related documentation.
-'\"
-'\" THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
-'\" EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
-'\" WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
-'\"
-'\" IN NO EVENT SHALL HAKAN SODERSTROM OR SODERSTROM PROGRAMVARUVERKSTAD
-'\" AB BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL
-'\" DAMAGES OF ANY KIND, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
-'\" OF USE, DATA OR PROFITS, WHETHER OR NOT ADVISED OF THE POSSIBILITY
-'\" OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN
-'\" CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-'\"
-'\" $Id: mysqltcl.n,v 1.1.1.1 2002/02/15 18:21:17 artur Exp $
-'\"
-'\" Updates by Tobias Ritzau 1998-03-18
-'\" Replaced all mysql by mysql
-'\" Updated the mysqlconnect documentation
-'\"
-'\" 1998-07-06
-'\" Changed some mysql back to msql
-'\" Updaated the name and introduction
-'\" Updated the mysqlcol documentation
-'\"
-'\" Copyright (c) 1998 Tobias Ritzau
-'\"
-'\" Updates by Artur Trzewik 2002-11-31
-'\" for mysqltcl2.1 (mysql::query mysq::endquery)
-'\"
-'\" Updates by Artur Trzewik 2002-11-31
-'\" for mysqltcl3.0
-'\"
-.SH "SYNOPSIS"
-package require \fBTcl  8.4\fR
-.sp
-package require \fBmysqltcl  3.0\fR
-.sp
-\fB::mysql::connect\fR ?\fIoption value\fR...?
-.sp
-\fB::mysql::use\fR \fIhandle\fR \fIdatabase\fR
-.sp
-\fB::mysql::sel\fR \fIhandle\fR \fIsql-statement\fR ?\fI-list|-flatlist\fR?
-.sp
-\fB::mysql::fetch\fR \fIhandle\fR
-.sp
-\fB::mysql::exec\fR \fIhandle\fR \fIsql-statement\fR
-.sp
-\fB::mysql::query\fR \fIhandle\fR \fIsql-select-statement\fR
-.sp
-\fB::mysql::endquery\fR \fIquery-handle\fR
-.sp
-\fB::mysql::map\fR \fIhandle\fR \fIbinding-list\fR \fIscript\fR
-.sp
-\fB::mysql::receive\fR \fIhandle\fR \fIsql-statment\fR \fIbinding-list\fR \fIscript\fR
-.sp
-\fB::mysql::seek\fR \fIhandle\fR \fIrow-index\fR
-.sp
-\fB::mysql::col\fR \fIhandle\fR \fItable-name\fR \fIoption\fR
-.sp
-\fB::mysql::col\fR \fIhandle\fR \fItable-name\fR \fIoptionkist\fR
-.sp
-\fB::mysql::col\fR \fIhandle\fR ?\fIoption\fR...?
-.sp
-\fB::mysql::info\fR \fIhandle\fR \fIoption\fR
-.sp
-\fB::mysql::baseinfo\fR \fIoption\fR
-.sp
-\fB::mysql::ping\fR \fIhandle\fR
-.sp
-\fB::mysql::changeuser\fR \fIuser\fR \fIpassword\fR ?\fIdatabase\fR?
-.sp
-\fB::mysql::result\fR \fIhandle\fR \fIoption\fR
-.sp
-\fB::mysql::state\fR \fIhandle\fR ?\fI-numeric\fR?
-.sp
-\fB::mysql::close\fR ?\fIhandle\fR?
-.sp
-\fB::mysql::insertid\fR \fIhandle\fR
-.sp
-\fB::mysql::escape\fR ?\fIhandle\fR? \fIstring\fR
-.sp
-\fB::mysql::autocommit\fR \fIhandle\fR \fIboolean\fR
-.sp
-\fB::mysql::commit\fR \fIhandle\fR
-.sp
-\fB::mysql::rollback\fR \fIhandle\fR
-.sp
-\fB::mysql::nextresult\fR \fIhandle\fR
-.sp
-\fB::mysql::moreresult\fR \fIhandle\fR
-.sp
-\fB::mysql::warningcount\fR \fIhandle\fR
-.sp
-\fB::mysql::isnull\fR \fIvalue\fR
-.sp
-\fB::mysql::newnull\fR
-.sp
-\fB::mysql::setserveroption\fR \fIhandle\fR \fIoption\fR
-.sp
-\fB::mysql::shutdown\fR \fIhandle\fR
-.sp
-.BE
-.SH "DESCRIPTION"
+[comment {-*- tcl -*- mysqltcl manpage}]
+[manpage_begin mysqltcl n 3.0]
+[comment {
+Copyright (c) 1994, 1995 Hakan Soderstrom and Tom Poindexter
+Permission to use, copy, modify, distribute, and sell this software
+and its documentation for any purpose is hereby granted without fee,
+provided that the above copyright notice and this permission notice
+appear in all copies of the software and related documentation.
+ 
+THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
+EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
+WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ 
+IN NO EVENT SHALL HAKAN SODERSTROM OR SODERSTROM PROGRAMVARUVERKSTAD
+AB BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL
+DAMAGES OF ANY KIND, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER OR NOT ADVISED OF THE POSSIBILITY
+OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ 
+$Id: mysqltcl.n,v 1.1.1.1 2002/02/15 18:21:17 artur Exp $
+
+Updates by Tobias Ritzau 1998-03-18
+Replaced all mysql by mysql
+Updated the mysqlconnect documentation
+ 
+1998-07-06
+Changed some mysql back to msql
+Updaated the name and introduction
+Updated the mysqlcol documentation
+
+Copyright (c) 1998 Tobias Ritzau
+
+Updates by Artur Trzewik 2002-11-31
+for mysqltcl2.1 (mysql::query mysq::endquery)
+
+Updates by Artur Trzewik 2002-11-31
+for mysqltcl3.0
+}]
+
+[titledesc {MySQL server access commands for Tcl}]
+
+[require Tcl 8.4]
+[require mysqltcl 3.0]
+[description]
 MySQLTcl is a collection of Tcl commands and a Tcl global array that
 provide access to MySQL database servers.
-.PP
+[para]
 MySQLTcl is nothing more than a patched version of a patched version
 of Hakan Soderstrom's patch of Tom Poindexter's Sybtcl.
-.PP
+[para]
 Mysqltcl is binary Tcl library (extension) written in C language that use direkt
 official MySQL C-API. Almost all Tcl commands correspond to MySQL C-API functions.
 For detail documentation see official MySQL C-API manual.
-.SH "MYSQLTCL COMMANDS"
-.TP
-\fB::mysql::connect\fR ?\fIoption value\fR...?
+
+[section {MYSQLTCL COMMANDS}]
+
+[list_begin definitions]
+
+[call [cmd ::mysql::connect] [opt [arg "option value"]...]]
+
 Connect to a MySQL server.
 A handle is returned which should be used in other mysqltcl
 commands using this connection.
@@ -134,35 +66,36 @@ commands using this connection.
 ::mysql::connect read first the options from my.cnf file group mysqltcl.
 See MySQL documentation chapter "options files".
 Possible connection options are:
-.RS
-.TP
-\fB-host\fR \fIhostname\fR
+
+[list_begin opt]
+
+[opt_def -host [arg hostname]]
 The host on which the server is located. The local host is used by default.
-.TP
-\fB-user\fR \fIuser\fR
+
+[opt_def -user [arg user]]
 The user whose name is used for the connection.
 The current Unix user-name is used by default.
-.TP
-\fB-password\fR \fIpassword\fR
+
+[opt_def -password [arg password]]
 The password that must be used for the connection.
 If it is not present, the connection is possible only for users with
 no password on the server.
-.TP
-\fB-db\fR \fIdb\fR
-If this option is present, \fIdb\fR is used as current database, with no need
-for a call to \fImysql::use\fR.
-.TP
-\fB-port\fR \fIport\fR
+
+[opt_def -db [arg db]]
+If this option is present, [arg db] is used as current database, with no need
+for a call to [emph mysql::use].
+
+[opt_def -port [arg port]]
 The port number for the TCP/IP connection, if it's different from the default.
-.TP
-\fB-socket\fR \fIsocket\fR
+
+[opt_def -socket [arg socket]]
 The socket or named pipe for the connection.
-.TP
-\fB-encoding\fR \fIencodingname\fR
+
+[opt_def -encoding [arg encodingname]]
 The option works similar to -encoding option in fconfigure. It support also
 special encoding name binary. By option -binary no converting will be done be reading or writing to/from MySQL.
-If option is not set the system encoding (see utf-8) is used.
-Please test all input and outputs with another program to check that all
+If option is not set the system encoding (see [encoding system]) is used.
+Please test all input and outputs with another program to check that all 
 is the way you expect it. If option binary is not used the system procedures
 Tcl_ExternalToUtfDString (writing) and Tcl_ExternalToUtf (reading) will be used
 by option binary the function Tcl_GetByteArrayFromObj and Tcl_NewByteArrayObj are used.
@@ -170,163 +103,179 @@ If you want to manipulate binary date use -encoding binary. By handling textes s
 special encoding that you want to use in your database. Consider what another system access the
 database and what encoding they expect. It can useful
 to use -encoding utf-8. That is standard encoding in some linux distributions and newer systems.
-.TP
-\fB-ssl\fR \fIboolean\fR
+
+[opt_def -ssl [arg boolean]]
 Switch to SSL after handshake. Default is  false
-.TP
-\fB-compress\fR \fIboolean\fR
+
+[opt_def -compress [arg boolean]]
 Use compression protocol. Default is false
-.TP
-\fB-odbc\fR \fIboolean\fR
+
+[opt_def -odbc [arg boolean]]
 The client is an ODBC client. This changes mysqld to be more ODBC-friendly. Default is false
-.TP
-\fB-noschema\fR \fIboolean\fR
+
+[opt_def -noschema [arg boolean]]
 Don't allow the db_name.tbl_name.col_name syntax. This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs. This changes mysqld to be more ODBC-friendly. Default is false
-.TP
-\fB-multistatement\fR \fIboolean\fR
+
+[opt_def -multistatement [arg boolean]]
 Tell the server that the client may send multiple-row-queries (separated by `;').
 If this flag is not set, multiple-row-queries are disabled. Default is false.
-.TP
-\fB-multiresult\fR \fIboolean\fR
+
+[opt_def -multiresult [arg boolean]]
 Tell the server that the client can handle multiple-result sets from multi-queries or stored procedures.
 This is automatically set if CLIENT_MULTI_STATEMENTS is set.
-.TP
-\fB-localfiles\fR \fIboolean\fR
+
+[opt_def -localfiles [arg boolean]]
 Enable LOAD DATA LOCAL handling. Default is false.
-.TP
-\fB-foundrows\fR \fIboolean\fR
+
+[opt_def -foundrows [arg boolean]]
 Return the number of found (matched) rows, not the number of affected rows.
 Default is false.
-.TP
-\fB-interactive\fR \fIboolean\fR
+
+[opt_def -interactive [arg boolean]]
 Allow interactive_timeout seconds (instead of wait_timeout seconds) of inactivity before closing the connection.
 The client's session wait_timeout variable will be set to the value of the session interactive_timeout variable.
 Default is false.
-.RE
-.TP
-\fB::mysql::use\fR \fIhandle\fR \fIdatabase\fR
+
+[list_end]
+
+[call [cmd ::mysql::use] [arg handle] [arg database]]
+
 Associate a connected handle with a particular database.
-\fIhandle\fR must be a valid handle previously obtained from ::mysql::connect.
+[arg handle] must be a valid handle previously obtained from ::mysql::connect.
 mysql::use raises a Tcl error if the handle is not valid or
 if the database name specified could not be used.
-.sp
+[nl]
 Consider you can use mysqltcl without to specify the database, in this case
 you must use explizit schema notation to specify the table in sql.
-.nf
+[example_begin]
 ::mysql::sel $handle {select * from uni.student}
-.fi
-with option connection \fI-noschema\fR you can prohibit such syntax.
-.TP
-\fB::mysql::sel\fR \fIhandle\fR \fIsql-statement\fR ?\fI-list|-flatlist\fR?
-Send \fIsql-statement\fR to the server.
-.sp
-If \fIsql-statement\fR is a SELECT statement and no \fI-list\fR or
-\fI-flatlist\fR option is specified, the command returns the
+[example_end]
+with option connection [arg -noschema] you can prohibit such syntax.
+
+[call [cmd ::mysql::sel] [arg handle] [arg sql-statement] [opt [arg -list|-flatlist]]]
+
+Send [arg sql-statement] to the server.
+[nl]
+If [arg sql-statement] is a SELECT statement and no [arg -list] or
+[arg -flatlist] option is specified, the command returns the
 number of rows returned as the result of the query.
-The rows can be obtained by the \fI::mysql::fetch\fR and/or the
-\fI::mysql::map\fR commands.
-The resulting rows are called the \fIpending result\fR.
-.sp
-If \fIsql-statement\fR is a SELECT statement and \fI-list\fR or \fI-flatlist\fR
-is specified, the command returns the full list of rows returned as
+The rows can be obtained by the [arg ::mysql::fetch] and/or the
+[arg ::mysql::map] commands.
+The resulting rows are called the [term "pending result"].
+[nl]
+If [arg sql-statement] is a SELECT statement and [arg -list] or [arg -flatlist]
+is specified, the command returns the full list of rows returned as 
 the result of the query in one of two possible formats:
-.RS
-.TP
-\fB-list\fR
+
+[list_begin opt]
+
+[opt_def -list]
 generates a list of lists, in which each element is a row of the result.
-.TP
-\fB-flatlist\fR
-generates the concatenation of all rows in a single list, which
-is useful for scanning with a single \fIforeach\fR.
-.RE
+
+[opt_def -flatlist]
+generates the concatenation of all rows in a single list, which 
+is useful for scanning with a single [emph foreach].
+
+[list_end]
+
 Example:
-.nf
+
+[example_begin]
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS" -list
 {1 Joe} {2 Phil} {3 John}
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS" -flatlist
 {1 Joe 2 Phil 3 John}
-.fi
-Note that both list syntaxes are faster than something like\\fB
-.nf
+[example_end]
+
+Note that both list syntaxes are faster than something like\fB
+
+[example_begin]
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS"
 % ::mysql::map $db {id name} {lappend result $id $name}
 % set $result
 {1 Joe 2 Phil 3 John}
-.fi
-If \fIsql-statement\fR is a valid MySQL statement, but not a SELECT
-statement, the command returns -1 after executing the statement, or an empty
-string if \fI-list\fR or \fI-flatlist\fR is specified.
+[example_end]
+
+If [arg sql-statement] is a valid MySQL statement, but not a SELECT
+statement, the command returns -1 after executing the statement, or an empty 
+string if [arg -list] or [arg -flatlist] is specified.
 There is no pending result in this case.
-.sp
+[nl]
 In any case ::mysql::sel implicitly cancels any previous result still
 pending for the handle.
-.TP
-\fB::mysql::fetch\fR \fIhandle\fR
+
+[call [cmd ::mysql::fetch] [arg handle]]
+
 Returns the next row from result set as Tcl list.
-mysql::fetch raises a Tcl error if there is no pending result for \fIhandle\fR.
+mysql::fetch raises a Tcl error if there is no pending result for [arg handle].
 mysql::fetch was former named mysqlnext.
-.TP
-\fB::mysql::exec\fR \fIhandle\fR \fIsql-statement\fR
-Send \fIsql-statement\fR, a MySQL non-SELECT statement, to the server.
-The \fIhandle\fR must be in use (through ::mysql::connect and ::mysql::use).
-.sp
+
+[call [cmd ::mysql::exec] [arg handle] [arg sql-statement]]
+
+Send [arg sql-statement], a MySQL non-SELECT statement, to the server.
+The [arg handle] must be in use (through ::mysql::connect and ::mysql::use).
+[nl]
 ::mysql::exec implicitly cancels any previous result pending for the handle.
-.sp
-If \fIsql-statement\fR is a valid MySQL SELECT statement, the statement
+[nl]
+If [arg sql-statement] is a valid MySQL SELECT statement, the statement
 is executed, but the result is discarded.
 No Tcl error is generated.
 This amounts to a (potentially costly) no-op.
 Use the ::mysql::sel command for SELECT statements.
-.sp
+[nl]
 ::mysql::exec return the number of affected rows (DELETE, UPDATE)
-.sp
-.TP
-\fB::mysql::query\fR \fIhandle\fR \fIsql-select-statement\fR
-Send \fIsql-select-statement\fR to the server.
-.sp
-\fImysql::query\fR allow to send multiple nested queries on one handle (without need to build
+[nl]
+
+[call [cmd ::mysql::query] [arg handle] [arg sql-select-statement]]
+
+Send [arg sql-select-statement] to the server.
+[nl]
+[arg mysql::query] allow to send multiple nested queries on one handle (without need to build
 new handle or caching results).
 mysql::query return a query handle that can be used as handle in commands as (mysql::fetch,
 ::mysql::map, mysql::seek, mysql::col, mysql::result).
 After result proceeding all query must be
-freed with \fI::mysql::endquery query-hanlde\fR command.
-.sp
+freed with [emph "::mysql::endquery query-hanlde"] command.
+[nl]
 Example:
-.nf
-set query1 [::mysql::query \\$db {SELECT ID, NAME FROM FRIENDS}\\]
-while {[set row [::mysql::fetch \\$query1]]!=""} {
-    set id [lindex \\$row 0]
-    set query2 [::mysql::query \\$db "SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID"]
-    ::mysql::map \\$query2 address { puts "address = $address" }
-    ::mysql::endquery \\$query2
+[example_begin]
+set query1 [lb]::mysql::query \$db {SELECT ID, NAME FROM FRIENDS}\[rb]
+while {[lb]set row [lb]::mysql::fetch \$query1[rb][rb]!=""} {
+    set id [lb]lindex \$row 0[rb]
+    set query2 [lb]::mysql::query \$db "SELECT ADDRESS FROM ADDRESS WHERE FRIENDID=$ID"[rb]
+    ::mysql::map \$query2 address { puts "address = $address" }
+    ::mysql::endquery \$query2
 }
 ::mysql::endquery $query1
-.fi
+[example_end]
 In most cases one should use sql-joins and avoid nested queries.
 SQL-sever can optimize such queries.
 But in some applications (GUI-Forms) where the results are used long time the inner
 query is not known before.
-.TP
-\fB::mysql::endquery\fR \fIquery-handle\fR
-free result memory after \fI::mysql::query\fR command.
+
+[call [cmd ::mysql::endquery] [arg query-handle]]
+
+free result memory after [arg ::mysql::query] command.
 You must invoke ::mysql::endquery after each mysqlquery to not cause memory leaks. See mysqlquery command.
-.sp
-Using \fI::mysql::endquery\fR on db-handle will free also memory (pending result) after \fI::mysql::sel\fR command.
-.sp
-.TP
-\fB::mysql::map\fR \fIhandle\fR \fIbinding-list\fR \fIscript\fR
+[nl]
+Using [arg ::mysql::endquery] on db-handle will free also memory (pending result) after [arg ::mysql::sel] command.
+[nl]
+
+
+[call [cmd ::mysql::map] [arg handle] [arg binding-list] [arg script]]
+
 Iterate a script over the rows of the pending result.
 ::mysql::map may consume all rows or only some of the rows of the pending
 result.
 Any remaining rows may be obtained by further ::mysql::fetch or ::mysql::map
 commands.
-.sp
-\fIhandle\fR must be a handle with a pending result from a previous
+[nl]
+[arg handle] must be a handle with a pending result from a previous
 ::mysql::sel command.
-\fIbinding-list\fR must be a list of one or more variable names.
-\fIscript\fR must be a Tcl script.
+[arg binding-list] must be a list of one or more variable names.
+[arg script] must be a Tcl script.
 It may be empty, but usually it contains one or more commands.
-.sp
+[nl]
 ::mysql::map processes one row at a time from the pending result.
 For each row the column values are bound to the variables in the
 binding list, then the script is executed.
@@ -339,39 +288,40 @@ A variable name begining with a hyphen is not bound; it serves as a
 placeholder in the binding list.
 If there are more columns than variables the extra columns are
 ignored.
-.sp
-The ::mysql::map command is similar to an ordinary \fIforeach\fR.
-A \fIforeach\fR iterates over the elements of a list, ::mysql::map
+[nl]
+The ::mysql::map command is similar to an ordinary [emph foreach].
+A [emph foreach] iterates over the elements of a list, ::mysql::map
 iterates over the rows of a pending result.
-In both cases iteration is affected by \fIbreak\fR and \fIcontinue\fR
+In both cases iteration is affected by [emph break] and [emph continue]
 Tcl commands.
 The binding list variables retain their last values after the command
 has completed.
-.sp
+[nl]
 A simple example follows.
-Assume $db is a handle in use.\\fB
-.nf
-::mysql::sel \\$db {
+Assume $db is a handle in use.\fB
+[example_begin]
+::mysql::sel \$db {
     select lname, fname, area, phone from friends order by lname, fname
 }
-::mysql::map \\$db {ln fn - phone} {
-   if {\\$phone == {}} continue
-   puts [format "%16s %-8s %s" \\$ln \\$fn \\$phone]
+::mysql::map \$db {ln fn - phone} {
+   if {\$phone == {}} continue
+   puts [lb]format "%16s %-8s %s" \$ln \$fn \$phone[rb]
 }
-.fi
-The ::mysql::sel command gets and sorts all rows from table \\fIfriends].
+[example_end]
+The ::mysql::sel command gets and sorts all rows from table \fIfriends].
 The ::mysql::map command is used to format and print the result in a way
 suitable for a phone list.
 For demonstration purposes one of the columns (area) is not used.
 The script begins by skipping over rows which have no phone number.
 The second command in the script formats and prints values from the row.
-.sp
+[nl]
 ::mysql::map raises a Tcl error if there is no pending result for
-\fIhandle\fR, or if \fIbinding-list\fR contains more variables than
+[arg handle], or if [arg binding-list] contains more variables than
 there are columns in the pending result.
-.sp
-.TP
-\fB::mysql::receive\fR \fIhandle\fR \fIsql-statment\fR \fIbinding-list\fR \fIscript\fR
+[nl]
+
+[call [cmd ::mysql::receive] [arg handle] [arg sql-statment] [arg binding-list] [arg script]]
+
 This command works the same way as the command mysqtclmap but
 it do not need leading ::mysql::sel command.
 The main difference is internal using of MySQL client library.
@@ -385,12 +335,13 @@ The scipt should process the result immadiatly because
 it can block table (or tables) for another clients.
 If performance matter please test all alternatives separatly.
 You must consider two aspects: memory consumption and performance.
-.TP
-\fB::mysql::seek\fR \fIhandle\fR \fIrow-index\fR
+
+[call [cmd ::mysql::seek] [arg handle] [arg row-index]]
+
 Moves the current position among the rows in the pending result.
-This may cause \fI::mysql::fetch\fR and \fI::mysql::map\fR to re-read rows, or to
+This may cause [term ::mysql::fetch] and [term ::mysql::map] to re-read rows, or to
 skip over rows.
-.sp
+[nl]
 Row index 0 is the position just before the first row in the pending result;
 row index 1 is the position just before the second row, and so
 on.
@@ -402,12 +353,12 @@ An out-of-bounds row index will cause ::mysql::seek to set the new current
 position either just before the first row (if the index is too negative),
 or just after the last row (if the index exceeds the number of rows).
 This is not an error condition.
-.sp
+[nl]
 ::mysql::seek returns the number of rows that can be read sequentially from
 the new current position.
-::mysql::seek raises a Tcl error if there is no pending result for \fIhandle\fR.
-.sp
-Portability note: The functionality of \fI::mysql::seek\fR is frequently
+::mysql::seek raises a Tcl error if there is no pending result for [arg handle].
+[nl]
+Portability note: The functionality of [arg ::mysql::seek] is frequently
 absent in other Tcl extensions for SQL.
 That is because MySQL C-API client library ofers own result set caching functionality
 that lacks another SQL-APIs.
@@ -415,68 +366,69 @@ That increase the performance because all rows are received at once and the quer
 not block the server for another clienst , on the other
 hand you works on the cached data can use a lot of memory and are up to date only in the moment
 of query but not fetch.
-.sp
-.TP
-\fB::mysql::col\fR \fIhandle\fR \fItable-name\fR \fIoption\fR
-.TP
-\fB::mysql::col\fR \fIhandle\fR \fItable-name\fR \fIoptionkist\fR
-.TP
-\fB::mysql::col\fR \fIhandle\fR ?\fIoption\fR...?
+[nl]
+
+[call [cmd ::mysql::col] [arg handle] [arg table-name] [arg option]]
+[call [cmd ::mysql::col] [arg handle] [arg table-name] [arg optionkist]]
+[call [cmd ::mysql::col] [arg handle] [opt [arg option]...]]
+
 Return information about the columns of a table.
-\fIhandle\fR must be in use.
-\fItable-name\fR must be the name of a table; it may be a table name
-or \fI-current\fR if there is a pending result.
+[arg handle] must be in use.
+[arg table-name] must be the name of a table; it may be a table name
+or [arg -current] if there is a pending result.
 One or more options control what information to return.
 Each option must be one of the following keywords.
-.RS
-.TP
-\fBname\fR Return the name of a column.
-.TP
-\fBtype\fR
-Return the type of a column; one of the strings \fIdecimal\fR,
-\fItiny\fR, \fIshort\fR, \fIlong\fR, \fIfloat\fR, \fIdouble\fR,
-\fInull\fR, \fItimestamp\fR, \fIlong long\fR, \fIint24\fR, \fIdate\fR,
-\fItime\fR, \fIdate time\fR, \fIyear\fR, \fInew date\fR, \fIenum\fR,
-\fIset\fR, \fItiny blob\fR, \fImedium blob\fR, \fIlong blob\fR,
-\fIblob\fR, \fIvar string\fR, or \fIstring\fR.
-Note that a column of type \fIchar\fR will return tiny, while they are
+[list_begin opt]
+
+[opt_def name] Return the name of a column.
+
+[opt_def type]
+Return the type of a column; one of the strings [emph decimal],
+[emph tiny], [emph short], [emph long], [emph float], [emph double],
+[emph null], [emph timestamp], [emph "long long"], [emph int24], [emph date],
+[emph time], [emph "date time"], [emph year], [emph "new date"], [emph enum],
+[emph set], [emph "tiny blob"], [emph "medium blob"], [emph "long blob"],
+[emph blob], [emph "var string"], or [emph string].
+Note that a column of type [emph char] will return tiny, while they are 
 represented equally.
-.TP
-\fBlength\fR Return the length of a column in bytes.
-.TP
-\fBtable\fR Return the name of the table in which this column occurs.
-.TP
-\fBnon_null\fR Return the string "1" if the column is non-null; otherwise "0".
-.TP
-\fBprim_key\fR Return the string "1" if the column is part of the primary key;
+
+[opt_def length] Return the length of a column in bytes.
+
+[opt_def table] Return the name of the table in which this column occurs.
+
+[opt_def non_null] Return the string "1" if the column is non-null; otherwise "0".
+
+[opt_def prim_key] Return the string "1" if the column is part of the primary key;
 otherwise "0".
-.TP
-\fBnumeric\fR Return the string "1" if the column is numeric; otherwise "0".
-.TP
-\fBdecimals\fR Return the string "1" if the column is non-null; otherwise "0".
-.RE
+
+[opt_def numeric] Return the string "1" if the column is numeric; otherwise "0".
+
+[opt_def decimals] Return the string "1" if the column is non-null; otherwise "0".
+[list_end]
+
 The three forms of this command generate their result in a
 particular way.
-.RS
-.IP [1]
+[list_begin enum]
+[enum]
 If a single option is present the result is a simple list of
 values; one for each column.
-.IP [2]
+[enum]
 If the options are given in the form of an option list the
 result is a list of lists.
 Each sublist corresponds to a column and contains the information
 specified by the options.
-.IP [3]
+[enum]
 If several options are given, but not in a list, the result is also
 a list of lists.
 In this case each sublist corresponds to an option and contains one
 value for each column.
-.RE
+[list_end]
+
 The following is a sample interactive session containing all forms of
 the ::mysql::col command and their results.
-The last command uses the \fI-current\fR option.
-It could alternatively specify the table name explicitly.\\fB
-.nf
+The last command uses the [emph -current] option.
+It could alternatively specify the table name explicitly.\fB
+[example_begin]
 %::mysql::col $db friends name
 name lname area phone
 % ::mysql::col $db friends {name type length}
@@ -484,174 +436,185 @@ name lname area phone
 % ::mysql::sel $db {select * from friends}
 % ::mysql::col $db -current name type length
 {fname lname area phone} {char char char char} {12 20 5 12}]
-.fi
-.TP
-\fB::mysql::info\fR \fIhandle\fR \fIoption\fR
-Return various database information depending on the \fIoption\fR.
+[example_end]
+
+[call [cmd ::mysql::info] [arg handle] [arg  option]]
+
+Return various database information depending on the [arg option].
 The option must be one of the following keywords.
-.RS
-.TP
-\fBinfo\fR
+
+[list_begin opt]
+[opt_def info]
 Return a String with information about last operation.
-"Records: 3 Duplicates: 0 Warnings: 0" by INSERT or
+"Records: 3 Duplicates: 0 Warnings: 0" by INSERT or 
 "Rows matched: 40 Changed: 40 Warnings: 0" by UPDATE statements
-(read the manual for mysql_info in MySQL C API documentation)
-.TP
-\fBdatabases\fR
+(read the manual for mysql_info in MySQL C API documentation) 
+
+[opt_def databases]
 Return a list of all database names known to the server.
 The handle must be connected.
-.TP
-\fBdbname\fR
+
+[opt_def dbname]
 Return the name of the database with which the handle is associated.
 The handle must be in use.
-.TP
-\fBdbname?\fR
+
+[opt_def dbname?]
 Return the name of the database with which the handle is associated;
 an empty string if the handle is connected, but not in use.
-.TP
-\fBhost\fR
+
+[opt_def host]
 Return the name of the host to which the handle is connected.
 The handle must be connected.
-.TP
-\fBhost\fR
+
+[opt_def host]
 Return the name of the host to which the handle is connected; an empty
 string if the handle is not valid.
-.TP
-\fBtables\fR
+
+[opt_def tables]
 Return a list of all table names in the database with which the handle
 is associated.
 The handle must be in use.
-.RE
-.TP
-\fB::mysql::baseinfo\fR \fIoption\fR
+[list_end]
+
+[call [cmd ::mysql::baseinfo] [arg option]]
+
 return information information that do not need handle.
-.RS
-.TP
-\fBconnectparameters\fR
+[list_begin opt]
+
+[opt_def connectparameters]
 return all supported connecting options
-.TP
-\fBclientversion\fR
+
+[opt_def clientversion]
 return the version of underlying MYSQL C-API library
-.RE
-.TP
-\fB::mysql::ping\fR \fIhandle\fR
+[list_end]
+
+[call [cmd ::mysql::ping] [arg handle]]
+
 Checks whether the connection to the server is working. If it has gone down, an automatic reconnection is attempted.
-.sp
+[nl]
 This function can be used by clients that remain idle for a long while, to check whether the server has closed the connection and reconnect if necessary.
-.sp
+[nl]
 Return True if server is alive
-.TP
-\fB::mysql::changeuser\fR \fIuser\fR \fIpassword\fR ?\fIdatabase\fR?
+
+[call [cmd ::mysql::changeuser] [arg user] [arg password] [opt [arg database]]]
+
 Changes the user and causes the database specified by database to become the default (current) database on the connection specified by MySQL. In subsequent queries, this database is the default for table references that do not include an explicit database specifier.
-.sp
+[nl]
 ::mysql::changeuser fails unless the connected user can be authenticated or if he doesn't have permission to use the database. In this case the user and database are not changed
-.sp
-if database parameter may be set were is no default database.
-.sp
+[nl]
+if database parameter may be set were is no default database. 
+[nl]
 Cause Error if operation is not succesed
-.TP
-\fB::mysql::result\fR \fIhandle\fR \fIoption\fR
+
+[call [cmd ::mysql::result] [arg handle] [arg option]]
+
 Return information about the pending result.
 Note that a result is pending until canceled by a ::mysql::exec command,
 even if no rows remain to be read.
-\fIOption\fR must be one of the following keywords.
-.RS
-.TP
-\fBcols\fR
+[arg Option] must be one of the following keywords.
+
+[list_begin opt]
+
+[opt_def cols]
 Return the number of columns in the pending result.
 There must be a pending result.
-.TP
-\fBcols\fR
+
+[opt_def cols]
 Return the number of columns in the pending result; an empty string if
 no result is pending.
-.TP
-\fBcurrent\fR
+
+[opt_def current]
 Return the current position in the pending result; a non-negative integer.
-This value can be used as \fIrow-index\fR in the ::mysql::seek command.
+This value can be used as [arg row-index] in the ::mysql::seek command.
 An error is raised if there is no pending result.
-.TP
-\fBcurrent?\fR
+
+[opt_def current?]
 As above, but returns an empty string if there is no pending result.
-.TP
-\fBrows\fR
+
+[opt_def rows]
 Return the number of rows that can be read sequentially from the
 current position in the pending result.
 There must be a pending result.
-.TP
-\fBrows\fR
+
+[opt_def rows]
 Return the number of rows that can be read sequentially from the
 current position in the pending result; an empty string if no result
 is pending.
-.sp
-[::mysql::result \\$db current] + [::mysql::result \\$db rows]
+[nl]
+[lb]::mysql::result \$db current[rb] + [lb]::mysql::result \$db rows[rb]
 always equals the total number of rows in the pending result.
-.RE
-.TP
-\fB::mysql::state\fR \fIhandle\fR ?\fI-numeric\fR?
+[list_end]
+
+[call [cmd ::mysql::state] [arg handle] [opt [arg -numeric]]]
+
 Return the state of a handle as a string or in numeric form.
-There is no requirement on \fIhandle\fR; it may be any string.
+There is no requirement on [arg handle]; it may be any string.
 The return value is one of the following strings, or the corresponding
-numeric value if \fI-numeric\fR is specified.
+numeric value if [arg -numeric] is specified.
 The states form a progression where each state builds on the previous.
-.RS
-.TP
-\fBNOT_A_HANDLE (0)\fR
-The string supplied for \fIhandle\fR is not a mysqltcl handle at all.
-.TP
-\fBUNCONNECTED (1)\fR
-The string supplied for \fIhandle\fR is one of the possible mysqltcl
+[list_begin opt]
+
+[opt_def "NOT_A_HANDLE (0)"]
+The string supplied for [arg handle] is not a mysqltcl handle at all.
+
+[opt_def "UNCONNECTED (1)"]
+The string supplied for [arg handle] is one of the possible mysqltcl
 handles, but it is not valid to any server.
-.TP
-\fBCONNECTED (2)\fR
+
+[opt_def "CONNECTED (2)"]
 The handle is connected to a server, but not associated with a database.
-.TP
-\fBIN_USE (3)\fR
+
+[opt_def "IN_USE (3)"]
 The handle is connected and associated with a database, but there is
 no pending result.
-.TP
-\fBRESULT_PENDING (4)\fR
+
+[opt_def "RESULT_PENDING (4)"]
 The handle is connected, associated with a database, and there is a
 pending result.
-.RE
-.TP
-\fB::mysql::close\fR ?\fIhandle\fR?
-Closes the server connection associated with \fIhandle\fR, causing it
+[list_end]
+
+[call [cmd ::mysql::close] [opt [arg handle]]]
+
+Closes the server connection associated with [arg handle], causing it
 to go back to the unconnected state.
-Closes all connections if \fIhandle\fR is omitted.
+Closes all connections if [arg handle] is omitted.
 Returns an empty string.
 ::mysql::close raises a Tcl error if a handle is specified which is not
 valid.
-.TP
-\fB::mysql::insertid\fR \fIhandle\fR
+
+[call [cmd ::mysql::insertid] [arg handle]]
+
 Returns the auto increment id of the last INSERT statement.
-.TP
-\fB::mysql::escape\fR ?\fIhandle\fR? \fIstring\fR
-Returns the content of \fIstring\fR, with all special characters escaped,
+
+[call [cmd ::mysql::escape] [opt [arg handle]] [arg string]]
+
+Returns the content of [arg string], with all special characters escaped,
 so that it is suitable for use in an SQL statement. This is simpler (faster)
-than using a general \fIregexp\fR or string map.
+than using a general [emph regexp] or string map.
 If handle is specified C-API function mysql_real_escape_string is used.
 This is the recommended usage because in this case current character set is respected.
-.TP
-\fB::mysql::autocommit\fR \fIhandle\fR \fIboolean\fR
+
+[call [cmd ::mysql::autocommit] [arg handle] [arg boolean]]
 Sets autocommit mode on if mode is 1, off if mode is 0.
-.TP
-\fB::mysql::commit\fR \fIhandle\fR
+
+[call [cmd ::mysql::commit] [arg handle]]
 Commits the current transaction.
-.TP
-\fB::mysql::rollback\fR \fIhandle\fR
+
+[call [cmd ::mysql::rollback] [arg handle]]
 Rollback the current transaction.
-.TP
-\fB::mysql::nextresult\fR \fIhandle\fR
+
+[call [cmd ::mysql::nextresult] [arg handle]]
 If more query results exist, mysql::nextresult() reads the next query results and returns the status back to application.
 returns -1 if no result or number of rows in the result set.
-.TP
-\fB::mysql::moreresult\fR \fIhandle\fR
+
+[call [cmd ::mysql::moreresult] [arg handle]]
 Returns true if more results exist from the currently executed query, and the application must call mysql::result to fetch the results.
-.TP
-\fB::mysql::warningcount\fR \fIhandle\fR
+
+[call [cmd ::mysql::warningcount] [arg handle]]
 Returns the number of warnings generated during execution of the previous SQL statement.
-.TP
-\fB::mysql::isnull\fR \fIvalue\fR
+
+
+[call [cmd ::mysql::isnull] [arg value]]
 Null handling is known problem by Tcl to DB interfaces.
 Mysql varchar type known 2 valid values NULL and empty string.
 There is no way to difference it in core Tcl because of it strong string based
@@ -661,72 +624,86 @@ in global array mysqltcl(nullvalue) and as default empty string.
 mysql::isnull can be used for safe check for null value.
 Warning mysql::isnull works only reliable if there are no type conversation on
 returned rows.
-Consider row is always Tcl list even when there are only on column in the row.
-.nf
-set row [::mysql::next \\$handle]
-if {[mysql::isnull [lindex \\$row 1]]} {
+Consider row is always Tcl list even when there are only one column in the row.
+[example_begin]
+set row [lb]::mysql::next \$handle[rb]
+if {[lb]mysql::isnull [lb]lindex \$row 1[rb]]} {
    puts "2. column of $row is null"
 }
-if {[mysql::isnull \\$row]} {
+if {[lb]mysql::isnull \$row[rb]} {
    puts "this does not work, because of type conversation list to string"
 }
-.fi
-.TP
-\fB::mysql::newnull\fR
+[example_end]
+
+[call [cmd ::mysql::newnull]]
 create new null object. It can be used to simulate returned row contents.
-.TP
-\fB::mysql::setserveroption\fR \fIhandle\fR \fIoption\fR
+
+[call [cmd ::mysql::setserveroption] [arg handle] [arg option]]
 there are only 2 options now: -multi_statment_on and -multi_statment_off
-.TP
-\fB::mysql::shutdown\fR \fIhandle\fR
-Asks the database server to shut down. The connected user must have SHUTDOWN privileges.
-.SH "STATUS INFORMATION"
+
+[call [cmd ::mysql::shutdown] [arg handle]]
+Asks the database server to shut down. The connected user must have SHUTDOWN privileges. 
+
+[list_end]
+
+[section "STATUS INFORMATION"]
 Mysqltcl creates and maintains a Tcl global array to provide status
-information.
-Its name is \fImysqlstatus\fR.
+information. 
+Its name is [emph mysqlstatus].
 .P
 Mysqlstatus elements:
-.TP
-code
+[list_begin definitions]
+[lst_item code]
+
 A numeric conflict code set after every mysqltcl command.
 Zero means no conflict; non-zero means some kind of conflict.
 All conflicts also generate a Tcl error.
-.sp
+[nl]
 All MySQL server conflicts set mysqlstatus(code) to the numeric
 code of the MySQL error.
-.sp
+[nl]
 Any other conflict sets mysqlstatus(code) to -1.
-.TP
-command
+
+[lst_item command]
 The last failing mysqltcl command.
 Not updated for successful commands.
-.TP
-message
+
+[lst_item message]
 Message string for the last conflict detected.
 The same string is returned as the result of the failing mysqltcl
 command.
 Not updated for successful commands.
-.TP
-nullvalue
+
+[lst_item nullvalue]
 The string to use in query results to represent the SQL null value.
 The empty string is used initially.
 You may set it to another value.
-.SH "Backward compatibility"
+[list_end]
+
+[section "Backward compatibility"]
 Up from version 3.0 all mysql commands are declared in ::mysql namespace.
 All names for example mysqlconnect are also aviable but deprecated.
 All old commands have the name pattern mysql{name} and the most of them are now mysql::{name}.
 The exception is mysqlnext, which  was renamed to mysql::fetch.
-.SH "BUGS & POSSIBLE MISFEATURES"
+
+[section "BUGS & POSSIBLE MISFEATURES"]
+
 Deleting any of the mysqltcl commands closes all connections.
-.SH "AUTHORS"
-.IP \(bu
+
+[section AUTHORS]
+
+[list_begin bullet]
+[bullet]
 Tobias Ritzau
-.IP \(bu
+[bullet]
 Paolo Brutti
-.IP \(bu
+[bullet]
 Artur Trzewik (mail@xdobry.de) - active maintainer
+[list_end]
+
 MySQLTcl is derived from a patch of msql by Hakan Soderstrom, Soderstrom Programvaruverkstad,
 S-12242 Enskede, Sweden.
 msql is derived from Sybtcl by Tom Poindexter.
 There are many contributors and bug reporter that are not mentioned.
 If you have contributed to mysqltcl and wants to be on the list contact Artur Trzewik.
+[manpage_end]

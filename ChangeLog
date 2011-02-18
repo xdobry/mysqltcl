@@ -1,6 +1,14 @@
+Release 3.00
+-- all comands are defined in ::mysql namespace 
+-- commands are renamed after pattern mysqlconnect mysql::connect
+-- needs mysql 4.1 or higher
+-- mysqlnext was renamed to mysql::fetch
+-- new commands in mysql namespace: autocommit, commit, rollback, nextresult, moreresult, warningcoumt, isnull, newnull, setserveroption, shutdown
+-- new connection options: -multistatement, -multiresult, -localfiles, -foundrows, -interactive
+-- special null handling. The DB null is returned as new special Tcl type
+-- man pages defined with tcllib doctools
 Release 2.51
 -- new command mysqlreceive that use mysql_use_result and do not cache result on client machine
--- the command mysqsel with option -list and -flatlist also uses mysql_use_result for better perfomance
 Release 2.50
 -- bug in handle managment by subinterpreters was removed be refactoring
 Release 2.41
