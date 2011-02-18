@@ -17,7 +17,7 @@ INSERT INTO Student VALUES (9,'Bem',5);
 
 CREATE TABLE Binarytest (
   id int(11) DEFAULT '0' NOT NULL auto_increment,
-  data blob,
+  data longblob,
   PRIMARY KEY (id)
 );
  

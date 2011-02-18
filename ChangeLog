@@ -1,3 +1,7 @@
+Release 2.20
+-- mysqlconnect was extended with option -encoding. Similar behavior to fconfigure. (initial patch written by Alexander Schoepe) The Version is not full compatible with oldier version. The differences are be reading date from mysql. Now the date are converted from External to Utf. See documentation for more information.
+Release 2.14
+-- configuration has new future for static linking with mysqlclient library
 Release 2.12
 -- refactoring (options for GetIndexFromObject are defined localy like in Tcl-core)
 -- removing unused variables

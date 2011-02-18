@@ -1,10 +1,11 @@
 #!/usr/bin/tcl
 
-if {[file exists ./libmysqltcl2.14.so]} {
-    load ./libmysqltcl2.14.so
+if {[file exists libload.tcl]} {
+    source libload.tcl
 } else {
-    load ../libmysqltcl2.14.so
+    source [file join [file dirname [info script]] libload.tcl]
 }
+
 
 puts "please observe memory consumption per top (Program break after reach 2000)"
 

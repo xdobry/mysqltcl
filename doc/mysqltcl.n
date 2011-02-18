@@ -91,6 +91,20 @@ The port number for the TCP/IP connection, if it's different from the default.
 .B -socket \fIsocket
 .br
 The socket or named pipe for the connection.
+.TP
+.B -encoding \fIencodingname
+.br
+The option works similar to -encoding option in fconfigure. It support also
+special encoding name binary. By option -binary no converting will be done be reading or writing to/from mysql.
+If option is not set the system encoding (see [encoding system]) is used.
+Please test all input and outputs with another program to check that all 
+is the way you expect it. If option binary is not used the system procedures
+Tcl_ExternalToUtfDString (writing) and Tcl_ExternalToUtf (reading) will be used
+by option binary the function Tcl_GetByteArrayFromObj and Tcl_NewByteArrayObj are used.
+If you want to manipulate binary date use -encoding binary. By handling textes set your
+special encoding that you want to use in your database. Consider what another system access the
+data base and what encoding they expect. It can usefull
+to use -encoding utf-8. That is standard encoding in some linux distribution (RedHat 9).
 .RE
 .TP
 .B mysqluse \fIhandle dbname\fR

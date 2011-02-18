@@ -8,10 +8,10 @@
 # >mysql -u root <test.sql
 # please adapt the parameters for mysqlconnect some lines above
 
-if {[file exists ./libmysqltcl2.1.so]} {
-    load ./libmysqltcl2.1.so
+if {[file exists libload.tcl]} {
+    source libload.tcl
 } else {
-    load ../libmysqltcl2.1.so
+    source [file join [file dirname [info script]] libload.tcl]
 }
 
 set handle [mysqlconnect -user root]

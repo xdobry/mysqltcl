@@ -8,10 +8,10 @@
 # >mysql -u root <test.sql
 # please adapt the parameters for mysqlconnect some lines above
 
-if {[file exists ./libmysqltcl2.14.so]} {
-    load ./libmysqltcl2.14.so
+if {[file exists libload.tcl]} {
+    source libload.tcl
 } else {
-    load ../libmysqltcl2.14.so
+    source [file join [file dirname [info script]] libload.tcl]
 }
 
 set handle [mysqlconnect -user root]
@@ -196,5 +196,28 @@ catch {
     mysqlnext [lindex $queries 0]
 }
 puts $errorInfo
+
+# Test of encondig option
+set handle [mysqlconnect -user root -db uni -encoding iso8859-1]
+
+set name {Artur Trzewik}
+mysqlexec $handle "INSERT INTO Student (Name,Semester) VALUES ('$name',11)"
+set newid [mysqlinsertid $handle]
+set rname [lindex [lindex [mysqlsel $handle "select Name from Student where MatrNr = $newid" -list] 0] 0]
+if {$rname!=$name} {
+    error "read write with encoding fails $rname == $name"
+}
+mysqlexec $handle "DELETE FROM Student WHERE MatrNr = $newid"
+
+mysqlclose $handle
+
+catch {
+    mysqlconnect -user root -db uni -encoding nonexisting
+}
+puts $errorInfo
+
+# endcoding
+set handle [mysqlconnect -user root -db uni -encoding binary]
+mysqlclose $handle
 
 puts "End of test"
