@@ -549,7 +549,6 @@ static MysqlTclHandle *mysql_prologue(Tcl_Interp *interp,int objc,Tcl_Obj *CONST
 
 static Tcl_Obj *mysql_colinfo(Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],MYSQL_FIELD* fld,Tcl_Obj * keyw)
 {
-  char buf[MYSQL_SMALL_SIZE];
   int idx ;
 
   static CONST char* MysqlColkey[] =
@@ -573,6 +572,7 @@ static Tcl_Obj *mysql_colinfo(Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],
     case MYSQL_COL_TYPE_K:
       switch (fld->type)
 	{
+
 
 	case FIELD_TYPE_DECIMAL:
 	  return Tcl_NewStringObj("decimal", -1);
@@ -610,7 +610,6 @@ static Tcl_Obj *mysql_colinfo(Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],
 	  return Tcl_NewStringObj("set", -1);
 	case FIELD_TYPE_TINY_BLOB:
 	  return Tcl_NewStringObj("tiny blob", -1);
-
 	case FIELD_TYPE_MEDIUM_BLOB:
 	  return Tcl_NewStringObj("medium blob", -1);
 	case FIELD_TYPE_LONG_BLOB:
@@ -621,14 +620,16 @@ static Tcl_Obj *mysql_colinfo(Tcl_Interp *interp,int objc,Tcl_Obj *CONST objv[],
 	  return Tcl_NewStringObj("var string", -1);
 	case FIELD_TYPE_STRING:
 	  return Tcl_NewStringObj("string", -1);
+#if MYSQL_VERSION_ID >= 50000
+	case MYSQL_TYPE_NEWDECIMAL:
+	   return Tcl_NewStringObj("newdecimal", -1);
+	case MYSQL_TYPE_GEOMETRY:
+	   return Tcl_NewStringObj("geometry", -1);
+	case MYSQL_TYPE_BIT:
+	   return Tcl_NewStringObj("bit", -1);
+#endif
 	default:
-	  if (strlen(fld->name)<MYSQL_SMALL_SIZE-30) {
- 	    sprintf(buf, "column '%s' has unknown datatype", fld->name);
-	  } else {
- 	    sprintf(buf, "column has unknown datatype");
-	  }
-          mysql_prim_confl(interp,objc,objv,buf);
-	  return NULL ;
+	  return Tcl_NewStringObj("unknown", -1);
 	}
       break ;
     case MYSQL_COL_LENGTH_K:
