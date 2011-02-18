@@ -322,60 +322,7 @@ tcltest::test {encoding-1.8} {changing encoding of handle} -body {
   return    
 }
 
-# no prepared statements in this version
-if 0 {
 
-tcltest::test {preparedstatment-1.0} {create test} -body {
-  set phandle [mysql::prepare $conn {insert into transtest (id,name) values (?,?)}]
-  mysql::close $phandle
-  return
-}
-
-tcltest::test {preparedstatment-1.1} {create errortest} -body {
-  set phandle [mysql::prepare $conn {nosql command ?,?}]
-  mysql::close $phandle
-  return
-} -returnCodes error -match glob -result "*SQL*"
-
-tcltest::test {preparedstatment-1.3} {select} -body {
-  set phandle [mysql::prepare $conn {select id,name from transtest}]
-  mysql::pselect $phandle
-  set rowcount 0
-  while {[llength [set row [mysql::fetch $phandle]]]>0} {
-  	 incr rowcount
-  }
-  mysql::close $phandle
-  return
-}
-
-
-tcltest::test {preparedstatment-1.2} {insert} -body {
-  set phandle [mysql::prepare $conn {insert into transtest (id,name) values (?,?)}]
-  set count [mysql::param $phandle count]
-  mysql::param $phandle type 0
-  mysql::param $phandle type 1
-  mysql::param $phandle type
-  mysql::pexecute $phandle 2 Artur
-  mysql::close $phandle
-  return $count
-} -result 2
-
-
-tcltest::test {preparedstatment-1.4} {select mit bind} -body {
-  set phandle [mysql::prepare $conn {select id,name from transtest where id=?}]
-  set countin [mysql::paramin $phandle count]
-  set countout [mysql::paramin $phandle count]
-  mysql::paramin $phandle type 0
-  mysql::paramin $phandle type
-  mysql::paramout $phandle type 0
-  mysql::paramout $phandle type 1
-  mysql::paramout $phandle type
-  mysql::execute $phandle
-  mysql::close $phandle
-  list $countin $countout
-} -result {1 2}
-
-}
 
 tcltest::cleanupTests
 

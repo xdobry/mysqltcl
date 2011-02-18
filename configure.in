@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([mysqltcl], [3.05])
+AC_INIT([mysqltcl], [3.06])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -180,7 +180,7 @@ AC_ARG_ENABLE(mysqlstatic, [  --enable-mysqlstatic      link static with libmysq
 if test "$tcl_ok" = "yes"; then
    LIBS="${LIBS} ${MYSQL_LIB_DIR}/libmysqlclient.a -lz -lcrypt -lnsl -lm"
 else
-   if test ! -f $MSQL_LIB_DIR/libmysqlclient${SHLIB_SUFFIX} -a -f /usr/lib/libmysqlclient${SHLIB_SUFFIX}; then
+   if test ! -f $MYSQL_LIB_DIR/libmysqlclient${SHLIB_SUFFIX} -a -f /usr/lib/libmysqlclient${SHLIB_SUFFIX}; then
       MYSQL_LIB_DIR=/usr/lib
    fi
    MYSQL_LIBS="-L$MYSQL_LIB_DIR -lmysqlclient"
