@@ -152,20 +152,25 @@ puts $errorInfo
 puts [mysqlsel $handle {select * from Student} -list]
 puts [mysqlsel $handle {select * from Student} -flatlist]
 
+set shandle [string trim " $handle "]
+mysqlinfo $shandle databases
+
 mysqlclose $handle
 
 # Test Tcl_Obj pointer after closing handles
 
 set a " $handle "
-catch {mysqlinfo $handle tables}
-puts "using closed handle $errorInfo"
+if {![catch {mysqlinfo $handle tables}]} {
+    puts "handle should be closed (dangling pointer)"
+}
 unset handle
 set a [string trim $a]
-catch {mysqlinfo $a tables}
-puts "using rebuild old handle $errorInfo"
+if {![catch {mysqlinfo $a tables}]} {
+    puts "handle should be closed"
+}
 
 
-# Test multi-conection 20 handles
+# Test multi-connection 20 handles
 
 puts "multiconnect"
 for {set x 0} {$x<20} {incr x} {
@@ -196,6 +201,16 @@ catch {
     mysqlnext [lindex $queries 0]
 }
 puts $errorInfo
+
+# closing handles with opened queries
+set handle [mysqlconnect -user root -db uni]
+mysqlquery $handle {select * from Student}
+mysqlclose
+
+# Testing false connecting
+if {![catch {mysqlconnect -user nouser -db nodb}]} {
+   error "this connection should not exist"
+}
 
 # Test of encondig option
 set handle [mysqlconnect -user root -db uni -encoding iso8859-1]
@@ -241,10 +256,7 @@ puts $errorInfo
 set handle [mysqlconnect -user root -db uni -encoding binary]
 mysqlclose $handle
 
-
-
 # testing connection flags
-
 
 puts "testing connection options"
 set handle [mysqlconnect -user root -db uni -ssl 1]
@@ -266,5 +278,18 @@ mysqlclose $handle
 
 puts [mysqlbaseinfo connectparameters]
 puts [mysqlbaseinfo clientversion]
+
+# testing different interpreters
+
+set handle [mysqlconnect -user root -db uni]
+set i1 [interp create]
+$i1 eval {
+  package require mysqltcl
+  set hdl [mysqlconnect -user root -db uni]
+  puts $hdl
+}
+interp delete $i1
+mysqlinfo $handle databases
+mysqlclose $handle
 
 puts "End of test"
