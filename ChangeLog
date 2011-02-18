@@ -1,3 +1,6 @@
+Release 3.05
+-- applied path from Björn König to support compilation with mysql3.20 (with help of #if)
+-- some addaption and bug fixes for mysql 5 for handling mutiple result queries. In case of mustiple statement mysql::exec return a list of results.
 Release 3.04
 -- bug fix for mysql::state (check for argument lenght). Thanks to Snyper for bug fix
 Release 3.03

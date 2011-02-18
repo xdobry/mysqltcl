@@ -1,12 +1,7 @@
 #!/usr/bin/tcl
 # Simple Test file to test all mysqltcl commands and parameters
 # up from version mysqltcl 3.0 and mysql 4.1
-# please create test database first
-# from test.sql file
-# >mysql -u root
-# >create database uni;
 #
-# >mysql -u root <test.sql
 # please adapt the parameters for mysqlconnect some lines above
 
 if {[file exists libload.tcl]} {
@@ -49,7 +44,7 @@ proc prepareTestDB {} {
       create table transtest (
          id int,
          name varchar(20)
-      ) ENGINE=INNODB
+      ) ENGINE=BerkeleyDB
     }
 
     catch {mysql::exec $handle {drop table Student}}
@@ -74,7 +69,7 @@ proc prepareTestDB {} {
 }
 
 prepareTestDB
-set conn [getConnection {-multistatement 1}]
+set conn [getConnection {-multistatement 1 -multiresult 1}]
 
 
 tcltest::test {null-1.0} {creating of null} {
@@ -112,6 +107,7 @@ tcltest::test {autocommit} {setting false autocommit} -body {
 mysql::autocommit $conn 0
 
 tcltest::test {commit} {commit} -body {
+   mysql::autocommit $conn 0
    mysqlexec $conn {delete from transtest where name='committest'}
    mysqlexec $conn {insert into transtest (name,id) values ('committest',2)}
    mysql::commit $conn
@@ -121,6 +117,7 @@ tcltest::test {commit} {commit} -body {
 } -result 1
 
 tcltest::test {rollback-1.0} {roolback} -body {
+   mysql::autocommit $conn 0
    mysqlexec $conn {delete from transtest where name='committest'}
    mysqlexec $conn {insert into transtest (name,id) values ('committest',2)}
    mysql::rollback $conn
@@ -145,14 +142,14 @@ tcltest::test {warning-count-1.0} {check mysql::warningcount} -body {
    mysql::warningcount $conn
 } -result 0
 
-
 tcltest::test {multistatement-1.0} {inserting multi rows} -body {
    mysql::exec $conn {
       insert into transtest (name,id) values ('row1',31);
       insert into transtest (name,id) values ('row2',32);
-      insert into transtest (name,id) values ('row3',33);
+      insert into transtest (name,id) values ('row3',33),('row4',34);
    }
-} -result 1
+
+} -result {1 1 2}
 
 tcltest::test {moreresult-1.3} {arg counts} -body {
    mysql::moreresult
@@ -171,7 +168,10 @@ tcltest::test {moreresult-1.1} {only one result} -body {
       select * from Student;
    }
    while {[llength [mysql::fetch $conn]]>0} {}
-   mysql::moreresult $conn
+   if {[set ret [mysql::moreresult $conn]]} {
+      # mysql::nextresult $conn
+   }
+   return $ret
 } -result 1
 
 tcltest::test {nextresult-1.0} {only one result} -body {

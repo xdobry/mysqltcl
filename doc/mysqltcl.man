@@ -243,7 +243,8 @@ No Tcl error is generated.
 This amounts to a (potentially costly) no-op.
 Use the ::mysql::sel command for SELECT statements.
 [nl]
-::mysql::exec return the number of affected rows (DELETE, UPDATE)
+::mysql::exec returns the number of affected rows (DELETE, UPDATE).
+In case of multiple statement ::mysql::exec returns a list of number of affected rows.
 [nl]
 
 [call [cmd ::mysql::query] [arg handle] [arg sql-select-statement]]
