@@ -37,7 +37,7 @@ PACKAGE=mysqltcl
 
 MAJOR_VERSION=2
 MINOR_VERSION=4
-PATCHLEVEL=0
+PATCHLEVEL=1
 
 VERSION=${MAJOR_VERSION}.${MINOR_VERSION}${PATCHLEVEL}
 NODOT_VERSION=${MAJOR_VERSION}${MINOR_VERSION}
@@ -193,6 +193,10 @@ AC_ARG_WITH(mysql-include,[ --with-mysql-include=DIR Mysql includes are in DIR],
 AC_ARG_WITH(mysql-lib,[  --with-mysql-lib=DIR	Mysql libraries are in DIR],
 	MYSQL_LIB_DIR=$withval, MYSQL_LIB_DIR="/usr/lib/mysql")
 MYSQL_INCLUDES="-I$MYSQL_INC_DIR"
+
+if test ! -f $MSQL_LIB_DIR/libmysqlclient${SHLIB_SUFFIX} -a -f /usr/lib/libmysqlclient${SHLIB_SUFFIX}; then
+   MYSQL_LIB_DIR=/usr/lib
+fi
 
 AC_ARG_ENABLE(mysqlstatic, [  --enable-mysqlstatic      link static with libmysqlclient.a], [tcl_ok=$enableval], [tcl_ok=$1])
 

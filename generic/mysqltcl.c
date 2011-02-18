@@ -758,7 +758,10 @@ DEFINE_CMD(Mysqltcl_Connect)
 
   handle->connection = mysql_init(NULL);
 
+  /* the function below caused in version pre 3.23.50 segmentation fault */
+#if (MYSQL_VERSION_ID>=32350)
   mysql_options(handle->connection,MYSQL_READ_DEFAULT_GROUP,groupname);
+#endif
 
   if (!mysql_real_connect (handle->connection, hostname, user,
                                 password, db, port, socket, flags)) {
@@ -1337,7 +1340,6 @@ DEFINE_CMD(Mysqltcl_BaseInfo)
 {
   int idx ;
   Tcl_Obj *resList;
-  int i;
   char **option;
   static CONST char* MysqlInfoOpt[] =
     {
@@ -1741,11 +1743,6 @@ DEFINE_CMD(Mysqltcl_Close)
  * Tcl_CreateExtendedInterp.
  */
 
-int Mysqltcl_SafeInit (interp)
-    Tcl_Interp *interp;
-{
-  return Mysqltcl_Init(interp);
-}
 
 #ifdef _WINDOWS
 __declspec( dllexport )
@@ -1812,4 +1809,13 @@ int Mysqltcl_Init (interp)
     panic("*** mysqltcl (mysqltcl.c): handle prefix inconsistency!\n");
     return TCL_ERROR ;
   }
+}
+
+#ifdef _WINDOWS
+__declspec( dllexport )
+#endif
+int Mysqltcl_SafeInit (interp)
+    Tcl_Interp *interp;
+{
+  return Mysqltcl_Init(interp);
 }

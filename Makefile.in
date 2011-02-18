@@ -194,7 +194,7 @@ binaries: $(BINARIES) pkgIndex.tcl
 libraries:
 
 doc:
-	@echo "Doc is as nroff file mysqltcl.n"
+	@echo "user manual doc is as nroff (man) file mysqltcl.n"
 
 install: all install-binaries install-libraries install-doc
 

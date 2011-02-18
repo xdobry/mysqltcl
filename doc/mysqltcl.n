@@ -71,7 +71,7 @@ The host on which the server is located. The local host is used by default.
 .B -user \fIuser
 .br
 The user whose name is used for the connection.
-The current Unix username is used by default.
+The current Unix user-name is used by default.
 .TP
 .B -password \fIpassword
 .br
@@ -103,24 +103,24 @@ Tcl_ExternalToUtfDString (writing) and Tcl_ExternalToUtf (reading) will be used
 by option binary the function Tcl_GetByteArrayFromObj and Tcl_NewByteArrayObj are used.
 If you want to manipulate binary date use -encoding binary. By handling textes set your
 special encoding that you want to use in your database. Consider what another system access the
-database and what encoding they expect. It can usefull
+database and what encoding they expect. It can useful
 to use -encoding utf-8. That is standard encoding in some linux distribution (RedHat 9).
 .TP
 .B -ssl \fIboolean
 .br
-Switch to SSL after handshake. Default ist  false
+Switch to SSL after handshake. Default is  false
 .TP
 .B -compress \fIboolean
 .br
-Use compression protocol. Default ist false
+Use compression protocol. Default is false
 .TP
 .B -odbc \fIboolean
 .br
-The client is an ODBC client. This changes mysqld to be more ODBC-friendly. Default ist false
+The client is an ODBC client. This changes mysqld to be more ODBC-friendly. Default is false
 .TP
 .B -noschema \fIboolean
 .br
-Don't allow the db_name.tbl_name.col_name syntax. This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs. This changes mysqld to be more ODBC-friendly. Default ist false
+Don't allow the db_name.tbl_name.col_name syntax. This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs. This changes mysqld to be more ODBC-friendly. Default is false
 .RE
 .TP
 .B mysqluse \fIhandle dbname\fR
@@ -614,7 +614,7 @@ Returns the auto increment id of the last INSERT statement.
 .br
 Returns the content of \fIstring\fR, with all special characters escaped,
 so that it is suitable for use in an SQL statement. This is simpler (faster)
-than using a general \fBregexp\fR. If handle is specifed C-API function mysql_real_escape_string is used. This is the recommended usage bacaus in this case current character set is respected.
+than using a general \fBregexp\fR. If handle is specified C-API function mysql_real_escape_string is used. This is the recommended usage because in this case current character set is respected.
 .sp
 .SH "STATUS INFORMATION"
 .P
@@ -668,15 +668,15 @@ ceased to exist.
 Deleting any of the mysqltcl commands closes all connections.
 .sp
 .SH AUTHORS
-Tobias Ritzau (tobri@ida.liu.se)
+Tobias Ritzau
 .br
-Paolo Brutti (Paolo.Brutti@tlsoft.it)
+Paolo Brutti
 .br
 Artur Trzewik (mail@xdobry.de)
 .br
-MySQLTcl is derived from a patch of msql by Hakan Soderstrom (hs@soderstrom.se), Soderstrom Programvaruverkstad,
+MySQLTcl is derived from a patch of msql by Hakan Soderstrom, Soderstrom Programvaruverkstad,
 S-12242 Enskede, Sweden.
-msql is derived from Sybtcl by Tom Poindexter (tpoindex@nyx.cs.du.edu).
+msql is derived from Sybtcl by Tom Poindexter.
 .sp
 $Revision: 1.1.1.1 $
 

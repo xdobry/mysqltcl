@@ -1313,7 +1313,7 @@ PACKAGE=mysqltcl
 
 MAJOR_VERSION=2
 MINOR_VERSION=4
-PATCHLEVEL=0
+PATCHLEVEL=1
 
 VERSION=${MAJOR_VERSION}.${MINOR_VERSION}${PATCHLEVEL}
 NODOT_VERSION=${MAJOR_VERSION}${MINOR_VERSION}
@@ -8182,6 +8182,10 @@ else
   MYSQL_LIB_DIR="/usr/lib/mysql"
 fi;
 MYSQL_INCLUDES="-I$MYSQL_INC_DIR"
+
+if test ! -f $MSQL_LIB_DIR/libmysqlclient${SHLIB_SUFFIX} -a -f /usr/lib/libmysqlclient${SHLIB_SUFFIX}; then
+   MYSQL_LIB_DIR=/usr/lib
+fi
 
 # Check whether --enable-mysqlstatic or --disable-mysqlstatic was given.
 if test "${enable_mysqlstatic+set}" = set; then

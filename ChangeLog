@@ -1,3 +1,8 @@
+Release 2.41
+-- Remove email from Tobias Rizau on his desire (not more up to date)
+-- conditional compiling dependent on mysql version causing ignore mysql 3.23.49 bug
+-- small source refactoring for hide same compiler warnings
+-- remove typos and out of date information from README file
 Release 2.40
 -- mysqltcl is now thread safe. The hashtable is hold separated for each thread
 Release 2.31

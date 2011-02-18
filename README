@@ -6,10 +6,8 @@ msqltcl-1.50. I removed all support for older versions of Tcl. If you
 are going to use older versions of Tcl, the patch (for msqltcl) found
 at http://www.tcx.se will do the job for you.
 
-The interface can be used in two ways, either as a statically linked
-application (mysqltclsh or mysqlwish) or as a dynamically linked
-shared library. It is easier to compile the static applications, but
-it is much nicer to use the dynamic library.
+The interface can be used as tcl package that is dynamically linked
+shared library.
 
 For copyright and licensing information, look in the README-msqltcl
 file. The same condition holds, but don't forget to mention me ;)
@@ -34,7 +32,7 @@ variable should be set to something similar to
 `uname -prs | sed 's/ /-/g'` for your system. If there are no preset
 configuration for your system, it is time to do some testing ;)
 
-Please report any successfull compilations under new configurations
+Please report any successful compilations under new configurations
 to me, so that I can rewrite the makefile.
 
 New features
@@ -49,16 +47,16 @@ using an environment variable (see MySQL documentation.)
 Use and abuse this software as much as you want as long as you follow
 the license agreement in the README-msqltcl file.
 
-Tobias Ritzau (tobri@ida.liu.se)
+Tobias Ritzau
 
 VERSION 2.0
 
-Version 2.0 supports all Tcl8.0 futures, uni-code strings and ist
+Version 2.0 supports all Tcl8.0 features, uni-code strings and is
 faster than old versions.
-Compiliation and Installation ist made by using 
-./configure scripts (autoconf,automake)
-It was internal redisigned to support unlimited connection number and
-to prepare for multi thread safe (remove unnessesery gloabal variables)
+Compilation and Installation is made by using 
+./configure scripts based on TEA
+It was internal redesigned to support unlimited connection number and
+is multi thread safe
 
 New mysqltcl Homepage 
 
@@ -66,5 +64,5 @@ http://www.xdobry.de/mysqltcl
 
 Contact:
 Mail to both:
-Tobias Ritzau <tobri@ida.liu.se> configure script support
+Tobias Ritzau configure script support
 Artur Trzewik <mail@xdobry.de> code support
