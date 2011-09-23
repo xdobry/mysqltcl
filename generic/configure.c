@@ -48,12 +48,14 @@
  *      TCL_ERROR - connect not successful - error message returned
  */
 
-static CONST char* MysqlConnectOpt[] = { "-host", "-user", "-password", "-db", "-port", "-socket", "-encoding", "-ssl",
-		"-compress", "-noschema", "-odbc",
-		"-multistatement", "-multiresult",
-		"-localfiles", "-ignorespace", "-foundrows", "-interactive", "-sslkey", "-sslcert", "-sslca", "-sslcapath",
+static CONST char* MysqlConnectOpt[] = {
+		"-host", "-user", "-password", "-db", "-port", "-socket", "-encoding", "-ssl",
+		"-compress", "-noschema", "-odbc","-multistatement", "-multiresult",
+		"-localfiles", "-ignorespace", "-foundrows", "-interactive",
+		"-sslkey", "-sslcert", "-sslca", "-sslcapath",
 		"-sslciphers", "-reconnect", "-read-timeout", "-write-timeout",
-		"-connect-timeout", "-protocol", "-init-command", "-ssl-verify-cert", "-secure-auth", NULL };
+		"-connect-timeout", "-protocol", "-init-command",
+		"-ssl-verify-cert", "-secure-auth", NULL };
 
 int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj * const objv[]) {
 	MysqltclState *statePtr = (MysqltclState *) clientData;
@@ -88,10 +90,8 @@ int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Ob
 		MYSQL_CONNCOMPRESS_OPT,
 		MYSQL_CONNNOSCHEMA_OPT,
 		MYSQL_CONNODBC_OPT,
-#if (MYSQL_VERSION_ID >= 40107)
 		MYSQL_MULTISTATEMENT_OPT,
 		MYSQL_MULTIRESULT_OPT,
-#endif
 		MYSQL_LOCALFILES_OPT,
 		MYSQL_IGNORESPACE_OPT,
 		MYSQL_FOUNDROWS_OPT,
@@ -155,15 +155,8 @@ int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Ob
 			encodingname = Tcl_GetStringFromObj(objv[++i], NULL);
 			break;
 		case MYSQL_CONNSSL_OPT:
-#if (MYSQL_VERSION_ID >= 40107)
 			if (Tcl_GetBooleanFromObj(interp, objv[++i], &isSSL) != TCL_OK)
 				return TCL_ERROR;
-#else
-			if (Tcl_GetBooleanFromObj(interp,objv[++i],&booleanflag) != TCL_OK )
-				return TCL_ERROR;
-			if (booleanflag)
-				flags |= CLIENT_SSL;
-#endif
 			break;
 		case MYSQL_CONNCOMPRESS_OPT:
 			if (Tcl_GetBooleanFromObj(interp, objv[++i], &booleanflag) != TCL_OK)
@@ -279,15 +272,12 @@ int Mysqltcl_Connect(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Ob
 
 
 
-#if (MYSQL_VERSION_ID>=32350)
 	/* the function below caused in version pre 3.23.50 segmentation fault */
 	mysql_options(handle->connection, MYSQL_READ_DEFAULT_GROUP, groupname);
-#endif
-#if (MYSQL_VERSION_ID >= 40107)
+
 	if (isSSL) {
 		mysql_ssl_set(handle->connection, sslkey, sslcert, sslca, sslcapath, sslcipher);
 	}
-#endif
 
 	if (!mysql_real_connect(handle->connection, hostname, user, password, db, port, socket, flags)) {
 		mysql_server_confl(interp, objc, objv, handle->connection);
@@ -550,10 +540,6 @@ int Mysqltcl_ChangeUser(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
  *    set autocommit mode
  */
 int Mysqltcl_AutoCommit(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj * const objv[]) {
-#if (MYSQL_VERSION_ID < 40107)
-	Tcl_AddErrorInfo(interp, FUNCTION_NOT_AVAILABLE);
-	return TCL_ERROR;
-#else
 	MysqlTclHandle *handle;
 	int isAutocommit = 0;
 
@@ -565,7 +551,6 @@ int Mysqltcl_AutoCommit(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
 		mysql_server_confl(interp, objc, objv, handle->connection);
 	}
 	return TCL_OK;
-#endif
 }
 
 /*

@@ -38,3 +38,73 @@ enum mysql_protocol_type
   MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET,
   MYSQL_PROTOCOL_PIPE, MYSQL_PROTOCOL_MEMORY
 };
+
+Prepared Statement
+1. NULL Value
+2. pexec
+3. TransferMysqlStmtError - setzen von Error code Tcl_SetObjErrorCode
+
+tdbc - Behandlung von stmt (nur stmt)
+1) prüfe stmt performance with mysql
+2) Behanldung von String mit Variablen Längen
+3) Unterschiede bei 5.0 und 5.5 (was ist der Hindergrund)
+4) Kein Seek
+5) Eigentlich ist die Beschreibung von Results schon bei prepera möglich
+6) Problem von mysqltcl - unterscheidung zwischen query and exec - mysql::efectedrows
+7) Keine Encoding Konventierung
+
+Neue Schnittstelle bei mysqltcl
+
+1) Die Parameter bei select und exec
+
+mysql::exec stmt param1 param2
+
+mysql::fetch ?row?
+
+return 0 oder 1 wenn vorhanden (ähnlich wie gets)
+
+mysql::query stmt param1 param2
+
+
+2) prepered statement
+a) möglichst die verwendung von alten Kommandos fordern
+
+mysql::prepare stmt
+mysql::pexec $phandle
+mysql::params $phandle
+mysql::pclose $phandle
+
+alt
+mysql::fetch $phandle
+mysql::insertid
+mysql::seek
+mysql::map
+mysql::allresults
+mysql::nextresult
+mysql::moreresult
+mysql::insertid
+mysql::col
+
+
+- preperad stmt unterstützung
+
+In tdbc
+
+set stmt [db prepare sql]
+$stmt params  - was macht das
+$stmt paramtype
+set resultset [$stmt execute ?dict?]
+$stmt allrows - list of resultssets
+$stmt foreach
+$stmt close
+
+resultset
+$rset columns
+$rest rowcount
+$rest nextrow
+$rest nextlist
+
+
+To distinguish between binary and non-binary data for string data types, check whether the charsetnr  value is 63.
+If so, the character set is binary, which indicates binary rather than non-binary data.
+This is how to distinguish between BINARY and CHAR, VARBINARY and VARCHAR, and BLOB and TEXT. 
