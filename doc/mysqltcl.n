@@ -1,7 +1,6 @@
 '\"
 '\" Generated from file 'mysqltcl.man' by tcllib/doctools with format 'nroff'
 '\"
-'\" -*- tcl -*- mysqltcl manpage
 '\" The definitions below are for supplemental macros used in Tcl/Tk
 '\" manual entries.
 '\"
@@ -240,46 +239,9 @@ Database Class:	\\fB\\$3\\fR
 ..
 .TH "mysqltcl" n 3.0  ""
 .BS
-.SH "NAME"
+.SH NAME
 mysqltcl \- MySQL server access commands for Tcl
-'\"
-'\" Copyright (c) 1994, 1995 Hakan Soderstrom and Tom Poindexter
-'\" Permission to use, copy, modify, distribute, and sell this software
-'\" and its documentation for any purpose is hereby granted without fee,
-'\" provided that the above copyright notice and this permission notice
-'\" appear in all copies of the software and related documentation.
-'\"
-'\" THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND,
-'\" EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
-'\" WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
-'\"
-'\" IN NO EVENT SHALL HAKAN SODERSTROM OR SODERSTROM PROGRAMVARUVERKSTAD
-'\" AB BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL
-'\" DAMAGES OF ANY KIND, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
-'\" OF USE, DATA OR PROFITS, WHETHER OR NOT ADVISED OF THE POSSIBILITY
-'\" OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN
-'\" CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-'\"
-'\" $Id: mysqltcl.n,v 1.1.1.1 2002/02/15 18:21:17 artur Exp $
-'\"
-'\" Updates by Tobias Ritzau 1998-03-18
-'\" Replaced all mysql by mysql
-'\" Updated the mysqlconnect documentation
-'\"
-'\" 1998-07-06
-'\" Changed some mysql back to msql
-'\" Updaated the name and introduction
-'\" Updated the mysqlcol documentation
-'\"
-'\" Copyright (c) 1998 Tobias Ritzau
-'\"
-'\" Updates by Artur Trzewik 2002-11-31
-'\" for mysqltcl2.1 (mysql::query mysq::endquery)
-'\"
-'\" Updates by Artur Trzewik 2002-11-31
-'\" for mysqltcl3.0
-'\"
-.SH "SYNOPSIS"
+.SH SYNOPSIS
 package require \fBTcl  8.4\fR
 .sp
 package require \fBmysqltcl  3.0\fR
@@ -351,7 +313,7 @@ package require \fBmysqltcl  3.0\fR
 \fB::mysql::encoding\fR \fIhandle\fR ?encoding?
 .sp
 .BE
-.SH "DESCRIPTION"
+.SH DESCRIPTION
 MySQLTcl is a collection of Tcl commands and a Tcl global array that
 provide access to MySQL database servers.
 .PP
@@ -459,6 +421,9 @@ Used if -ssl is true
 \fB-sslcipher\fR \fIstring\fR
 is a list of allowable ciphers to use for SSL encryption.
 Used if -ssl is true
+.TP
+\fB-reconnect\fR \fIboolean\fR
+default is false.
 .RE
 .TP
 \fB::mysql::use\fR \fIhandle\fR \fIdatabase\fR
@@ -470,7 +435,9 @@ if the database name specified could not be used.
 Consider you can use mysqltcl without to specify the database, in this case
 you must use explizit schema notation to specify the table in sql.
 .nf
+
 ::mysql::sel $handle {select * from uni.student}
+
 .fi
 with option connection \fI-noschema\fR you can prohibit such syntax.
 .TP
@@ -498,17 +465,21 @@ is useful for scanning with a single \fIforeach\fR.
 .RE
 Example:
 .nf
+
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS" -list
 {1 Joe} {2 Phil} {3 John}
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS" -flatlist
 {1 Joe 2 Phil 3 John}
+
 .fi
 Note that both list syntaxes are faster than something like
 .nf
+
 % ::mysql::sel $db "SELECT ID, NAME FROM FRIENDS"
 % ::mysql::map $db {id name} {lappend result $id $name}
 % set $result
 {1 Joe 2 Phil 3 John}
+
 .fi
 If \fIsql-statement\fR is a valid MySQL statement, but not a SELECT
 statement, the command returns -1 after executing the statement, or an empty
@@ -551,6 +522,7 @@ freed with \fI::mysql::endquery query-hanlde\fR command.
 .sp
 Example:
 .nf
+
 set query1 [::mysql::query $db {SELECT ID, NAME FROM FRIENDS}\\]
 while {[set row [::mysql::fetch $query1]]!=""} {
     set id [lindex $row 0]
@@ -559,6 +531,7 @@ while {[set row [::mysql::fetch $query1]]!=""} {
     ::mysql::endquery $query2
 }
 ::mysql::endquery $query1
+
 .fi
 In most cases one should use sql-joins and avoid nested queries.
 SQL-sever can optimize such queries.
@@ -609,6 +582,7 @@ has completed.
 A simple example follows.
 Assume $db is a handle in use.
 .nf
+
 ::mysql::sel $db {
     select lname, fname, area, phone from friends order by lname, fname
 }
@@ -616,6 +590,7 @@ Assume $db is a handle in use.
    if {$phone == {}} continue
    puts [format "%16s %-8s %s" $ln $fn $phone]
 }
+
 .fi
 The ::mysql::sel command gets and sorts all rows from table friends.
 The ::mysql::map command is used to format and print the result in a way
@@ -735,6 +710,7 @@ the ::mysql::col command and their results.
 The last command uses the \fI-current\fR option.
 It could alternatively specify the table name explicitly.
 .nf
+
 %::mysql::col $db friends name
 name lname area phone
 % ::mysql::col $db friends {name type length}
@@ -742,6 +718,7 @@ name lname area phone
 % ::mysql::sel $db {select * from friends}
 % ::mysql::col $db -current name type length
 {fname lname area phone} {char char char char} {12 20 5 12}]
+
 .fi
 .TP
 \fB::mysql::info\fR \fIhandle\fR \fIoption\fR
@@ -938,6 +915,7 @@ Warning mysql::isnull works only reliable if there are no type conversation on
 returned rows.
 Consider row is always Tcl list even when there are only one column in the row.
 .nf
+
 set row [::mysql::next $handle]
 if {[mysql::isnull [lindex $row 1]]} {
    puts "2. column of $row is null"
@@ -945,6 +923,7 @@ if {[mysql::isnull [lindex $row 1]]} {
 if {[mysql::isnull $row]} {
    puts "this does not work, because of type conversation list to string"
 }
+
 .fi
 .TP
 \fB::mysql::newnull\fR
@@ -959,6 +938,7 @@ Asks the database server to shut down. The connected user must have SHUTDOWN pri
 \fB::mysql::encoding\fR \fIhandle\fR ?encoding?
 Ask or change a encoding of connection.
 There are special encoding "binary" for binary data transfers.
+.PP
 .SH "STATUS INFORMATION"
 Mysqltcl creates and maintains a Tcl global array to provide status
 information.
@@ -990,6 +970,7 @@ nullvalue
 The string to use in query results to represent the SQL null value.
 The empty string is used initially.
 You may set it to another value.
+.PP
 .SH "Backward compatibility"
 Up from version 3.0 all mysql commands are declared in ::mysql namespace.
 All names for example mysqlconnect are also aviable but deprecated.
@@ -997,13 +978,14 @@ All old commands have the name pattern mysql{name} and the most of them are now 
 The exception is mysqlnext, which  was renamed to mysql::fetch.
 .SH "BUGS & POSSIBLE MISFEATURES"
 Deleting any of the mysqltcl commands closes all connections.
-.SH "AUTHORS"
+.SH AUTHORS
 .IP \(bu
 Tobias Ritzau
 .IP \(bu
 Paolo Brutti
 .IP \(bu
 Artur Trzewik (mail@xdobry.de) - active maintainer
+.PP
 MySQLTcl is derived from a patch of msql by Hakan Soderstrom, Soderstrom Programvaruverkstad,
 S-12242 Enskede, Sweden.
 msql is derived from Sybtcl by Tom Poindexter.

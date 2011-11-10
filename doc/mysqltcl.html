@@ -1,5 +1,4 @@
-<! -- -*- tcl -*- mysqltcl manpage
-   -->
+
 <html><head>
 <title>mysqltcl -  </title>
 </head>
@@ -13,8 +12,7 @@
 <h2><a name="name">NAME</a></h2>
 <p>
 <p> mysqltcl - MySQL server access commands for Tcl
-<! --    -- Copyright (c) 1994, 1995 Hakan Soderstrom and Tom Poindexter   -- Permission to use, copy, modify, distribute, and sell this software   -- and its documentation for any purpose is hereby granted without fee,   -- provided that the above copyright notice and this permission notice   -- appear in all copies of the software and related documentation.   --     -- THE SOFTWARE IS PROVIDED &quot;AS-IS&quot; AND WITHOUT WARRANTY OF ANY KIND,   -- EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY   -- WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.   --     -- IN NO EVENT SHALL HAKAN SODERSTROM OR SODERSTROM PROGRAMVARUVERKSTAD   -- AB BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL   -- DAMAGES OF ANY KIND, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS   -- OF USE, DATA OR PROFITS, WHETHER OR NOT ADVISED OF THE POSSIBILITY   -- OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING OUT OF OR IN   -- CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.   --     -- $Id: mysqltcl.n,v 1.1.1.1 2002/02/15 18:21:17 artur Exp $   --    -- Updates by Tobias Ritzau 1998-03-18   -- Replaced all mysql by mysql   -- Updated the mysqlconnect documentation   --     -- 1998-07-06   -- Changed some mysql back to msql   -- Updaated the name and introduction   -- Updated the mysqlcol documentation   --    -- Copyright (c) 1998 Tobias Ritzau   --    -- Updates by Artur Trzewik 2002-11-31   -- for mysqltcl2.1 (mysql::query mysq::endquery)   --    -- Updates by Artur Trzewik 2002-11-31   -- for mysqltcl3.0   -- 
-   -->
+
 
 
 
@@ -204,6 +202,10 @@ Used if -ssl is true
 <dt><strong>-sslcipher</strong> <i class='arg'>string</i><dd>
 is a list of allowable ciphers to use for SSL encryption. 
 Used if -ssl is true
+
+<br><br>
+<dt><strong>-reconnect</strong> <i class='arg'>boolean</i><dd>
+default is false.
 
 </dl>
 

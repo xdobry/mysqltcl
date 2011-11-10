@@ -156,6 +156,9 @@ Used if -ssl is true
 is a list of allowable ciphers to use for SSL encryption. 
 Used if -ssl is true
 
+[opt_def -reconnect [arg boolean]]
+default is false.
+
 [list_end]
 
 [call [cmd ::mysql::use] [arg handle] [arg database]]

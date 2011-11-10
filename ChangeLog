@@ -1,3 +1,5 @@
+Release 3.051
+-- add connection option -reconnect (patch from david cluytens)
 Release 3.05
 -- applied path from Björn König to support compilation with mysql3.20 (with help of #if)
 -- some addaption and bug fixes for mysql 5 for handling mutiple result queries. In case of mustiple statement mysql::exec return a list of results.
