@@ -1,3 +1,5 @@
+Release 3.052
+-- fix multiresult bug (column number)  (patch from Thikrallah I.Shreah)
 Release 3.051
 -- add connection option -reconnect (patch from david cluytens)
 Release 3.05

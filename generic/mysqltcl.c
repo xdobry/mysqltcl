@@ -36,7 +36,7 @@
 #ifdef _WINDOWS
    #include <windows.h>
    #define PACKAGE "mysqltcl"
-   #define PACKAGE_VERSION "3.051"
+   #define PACKAGE_VERSION "3.052"
 #endif
 
 #include <tcl.h>
@@ -2163,6 +2163,7 @@ static int Mysqltcl_NextResult(ClientData clientData, Tcl_Interp *interp, int ob
       return mysql_server_confl(interp,objc,objv,handle->connection);
   }
   handle->result = mysql_store_result(handle->connection);
+  handle->col_count = mysql_num_fields(handle->result);
   if (handle->result == NULL) {
       Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
   } else {

@@ -190,6 +190,18 @@ tcltest::test {nextresult-1.0} {only one result} -body {
    return $hadRow
 } -result 1 -returnCodes 2
 
+tcltest::test {nextresult-rows-1.1} {rows number} -body {
+   mysql::ping $conn
+   mysql::sel $conn {
+      select name from Student where name='Sojka';
+      select name,semester from Student;
+   }
+   set r1 [mysql::result $conn cols]
+   mysql::nextresult $conn
+   set r2 [mysql::result $conn cols]
+   expr {$r1+$r2}
+} -result 3
+
 tcltest::test {setserveroption-1.0} {set multistatment off} -body {
    mysql::setserveroption $conn -multi_statment_off
    mysql::exec $conn {
